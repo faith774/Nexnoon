@@ -3,7 +3,7 @@ services:
     name: nexnoon-api
     runtime: node
     plan: free
-    rootDir: nexnon-backend
+    rootDir: nexnoon-backend
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
