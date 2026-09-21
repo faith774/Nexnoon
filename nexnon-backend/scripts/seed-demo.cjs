@@ -88,6 +88,7 @@ async function main() {
       },
     }, 'PATCH');
   }
+  
   await request('/enrollments', student.token, { classId: cls.id });
   const classroom = await request(`/data/class/${cls.id}`, student.token);
   const dashboard = await request('/data/instructor', teacher.token);
