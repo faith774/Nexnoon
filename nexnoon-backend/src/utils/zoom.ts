@@ -15,7 +15,12 @@ interface CreateZoomMeetingInput {
    * provided, preserving pre-existing sessions created before per-instructor mapping.
    */
   hostIdentifier?: string;
+  /** IANA zone Zoom shows the meeting in (invites, meeting list). The start instant itself is UTC. */
+  timezone?: string;
 }
+
+/** Zoom rejects fractional or out-of-range durations. */
+const zoomDuration = (minutes: number) => Math.min(24 * 60, Math.max(15, Math.round(minutes || 60)));
 
 export interface ZoomMeeting {
   join_url: string;
@@ -36,6 +41,15 @@ export const getZoomAccessToken = async (): Promise<string | null> => {
     return null;
   }
 
+  // Reject placeholder values from .env.example so "configured" checks stay honest.
+  if (
+    ZOOM_ACCOUNT_ID.startsWith('your_') ||
+    ZOOM_CLIENT_ID.startsWith('your_') ||
+    ZOOM_CLIENT_SECRET.startsWith('your_')
+  ) {
+    return null;
+  }
+
   const tokenResponse = await axios.post(
     `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${ZOOM_ACCOUNT_ID}`,
     undefined,
@@ -50,6 +64,47 @@ export const getZoomAccessToken = async (): Promise<string | null> => {
 
   return tokenResponse.data.access_token as string;
 };
+
+/** Safe status flags for admin / instructor diagnostics (no secrets). */
+export function getZoomIntegrationStatus() {
+  const meetings =
+    Boolean(ENV.ZOOM_ACCOUNT_ID && ENV.ZOOM_CLIENT_ID && ENV.ZOOM_CLIENT_SECRET) &&
+    !ENV.ZOOM_ACCOUNT_ID.startsWith('your_') &&
+    !ENV.ZOOM_CLIENT_ID.startsWith('your_') &&
+    !ENV.ZOOM_CLIENT_SECRET.startsWith('your_');
+
+  const meetingSdk =
+    Boolean(ENV.ZOOM_MEETING_SDK_CLIENT_ID && ENV.ZOOM_MEETING_SDK_CLIENT_SECRET) &&
+    !ENV.ZOOM_MEETING_SDK_CLIENT_ID.startsWith('your_') &&
+    !ENV.ZOOM_MEETING_SDK_CLIENT_SECRET.startsWith('your_');
+
+  const webhooks = Boolean(ENV.ZOOM_WEBHOOK_SECRET_TOKEN);
+
+  return {
+    meetings: {
+      configured: meetings,
+      purpose: 'Create/update Zoom meetings and host start links',
+    },
+    policy: {
+      joinEarlyMinutes: ENV.LIVE_CLASS_JOIN_EARLY_MINUTES,
+      lateJoinGraceMinutes: ENV.LIVE_CLASS_LATE_JOIN_GRACE_MINUTES,
+      hostEarlyMinutes: ENV.LIVE_CLASS_HOST_EARLY_MINUTES,
+      waitingRoom: ENV.ZOOM_WAITING_ROOM,
+      autoRecording: ENV.ZOOM_AUTO_RECORDING,
+    },
+    meetingSdk: {
+      configured: meetingSdk,
+      purpose: 'Sign in-browser learner join tokens',
+    },
+    webhooks: {
+      configured: webhooks,
+      purpose: 'Auto mark sessions live/completed from Zoom events',
+      endpointPath: '/v1/zoom/webhook',
+    },
+    readyForTutors: meetings,
+    readyForLearners: meetings && meetingSdk,
+  };
+}
 
 /**
  * Lightweight Zoom integration.
@@ -85,14 +140,16 @@ export const createZoomMeeting = async (
       topic: input.topic,
       type: 2, // scheduled
       start_time: input.startTime,
-      duration: input.durationMinutes,
+      duration: zoomDuration(input.durationMinutes),
+      ...(input.timezone ? { timezone: input.timezone } : {}),
       settings: {
-        waiting_room: true,
+        waiting_room: ENV.ZOOM_WAITING_ROOM,
         join_before_host: false,
         mute_upon_entry: true,
         participant_video: false,
         host_video: true,
         approval_type: 0,
+        auto_recording: ENV.ZOOM_AUTO_RECORDING,
       },
     },
     {
@@ -114,7 +171,7 @@ export const createZoomMeeting = async (
  */
 export const updateZoomMeeting = async (
   meetingId: string,
-  input: { startTime: string; durationMinutes: number }
+  input: { startTime: string; durationMinutes: number; timezone?: string; topic?: string }
 ): Promise<void> => {
   const accessToken = await getZoomAccessToken();
   if (!accessToken) return;
@@ -123,7 +180,9 @@ export const updateZoomMeeting = async (
     `https://api.zoom.us/v2/meetings/${meetingId}`,
     {
       start_time: input.startTime,
-      duration: input.durationMinutes,
+      duration: zoomDuration(input.durationMinutes),
+      ...(input.timezone ? { timezone: input.timezone } : {}),
+      ...(input.topic ? { topic: input.topic } : {}),
     },
     {
       headers: {
@@ -132,6 +191,49 @@ export const updateZoomMeeting = async (
       timeout: REQUEST_TIMEOUT_MS,
     }
   );
+};
+
+/**
+ * Looks up a user in the platform Zoom account, so admins can only map instructors to real, licensed hosts.
+ * Returns `undefined` when Zoom isn't configured (nothing to check against) and `null` when the user doesn't exist.
+ */
+export const lookupZoomUser = async (
+  emailOrId: string
+): Promise<{ id: string; email: string; licensed: boolean } | null | undefined> => {
+  const accessToken = await getZoomAccessToken().catch(() => null);
+  if (!accessToken) return undefined;
+  try {
+    const { data } = await axios.get<{ id: string; email: string; type: number }>(
+      `https://api.zoom.us/v2/users/${encodeURIComponent(emailOrId)}`,
+      { headers: { Authorization: `Bearer ${accessToken}` }, timeout: REQUEST_TIMEOUT_MS }
+    );
+    return { id: data.id, email: data.email, licensed: data.type !== 1 };
+  } catch (error) {
+    if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 400)) return null;
+    throw error;
+  }
+};
+
+/**
+ * Deletes a meeting on Zoom when its session is deleted or cancelled, so hosts' Zoom calendars stay clean.
+ * Never throws: a meeting that is already gone (404) counts as success; other failures return false.
+ */
+export const deleteZoomMeeting = async (meetingId: string | undefined | null): Promise<boolean> => {
+  if (!meetingId) return true;
+  try {
+    const accessToken = await getZoomAccessToken();
+    if (!accessToken) return true;
+    await axios.delete(`https://api.zoom.us/v2/meetings/${meetingId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      params: { schedule_for_reminder: false },
+      timeout: REQUEST_TIMEOUT_MS,
+    });
+    return true;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) return true;
+    console.error(`Zoom meeting ${meetingId} could not be deleted:`, error instanceof Error ? error.message : 'unknown error');
+    return false;
+  }
 };
 
 /**
@@ -198,16 +300,18 @@ export const generateZoomMeetingSDKSignature = (
     throw new Error('Zoom Meeting SDK credentials not configured');
   }
 
-  const expirationSeconds = 60 * 60; // 1 hour
-  const timestamp = Math.floor(Date.now() / 1000);
-  const expirationTime = timestamp + expirationSeconds;
+  // Back-date iat slightly so small clock skew with Zoom doesn't reject a fresh token.
+  const timestamp = Math.floor(Date.now() / 1000) - 30;
+  const expirationTime = timestamp + 2 * 60 * 60;
 
   const payload = {
     appKey: ZOOM_MEETING_SDK_CLIENT_ID,
+    sdkKey: ZOOM_MEETING_SDK_CLIENT_ID,
     mn: input.meetingNumber.toString(),
     role: 0,
     iat: timestamp,
     exp: expirationTime,
+    tokenExp: expirationTime,
   };
 
   return jwt.sign(payload, ZOOM_MEETING_SDK_CLIENT_SECRET, { algorithm: 'HS256' });

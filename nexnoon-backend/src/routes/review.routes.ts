@@ -2,7 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { ReviewModel } from '../models/Review';
 import { ClassModel } from '../models/Class';
+import { User } from '../models/User';
+import { EnrollmentModel } from '../models/Enrollment';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+import { recomputeClassRating } from '../utils/reviews';
 
 const router = Router();
 
@@ -29,30 +32,32 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
     return res.status(404).json({ success: false, message: 'Class not found' });
   }
 
+  const enrolled = await EnrollmentModel.findOne({
+    classId,
+    userId: req.user!.id,
+    status: { $in: ['active', 'completed'] },
+  });
+  if (!enrolled) {
+    return res.status(403).json({ success: false, message: 'Only enrolled learners can leave a review' });
+  }
+
+  const existing = await ReviewModel.findOne({ classId, userId: req.user!.id });
+  if (existing) {
+    return res.status(409).json({ success: false, message: 'You already reviewed this class' });
+  }
+
+  const user = await User.findById(req.user!.id).select('fullName avatar').lean();
+
   const review = await ReviewModel.create({
     classId,
     userId: req.user!.id,
-    userName: 'Student', // resolve from user profile in production
+    userName: user?.fullName || 'Learner',
+    userAvatar: user?.avatar,
     rating,
     comment,
   });
 
-  const stats = await ReviewModel.aggregate([
-    { $match: { classId: cls._id } },
-    {
-      $group: {
-        _id: '$classId',
-        avgRating: { $avg: '$rating' },
-        count: { $sum: 1 },
-      },
-    },
-  ]);
-
-  if (stats[0]) {
-    cls.rating = stats[0].avgRating;
-    cls.reviewsCount = stats[0].count;
-    await cls.save();
-  }
+  await recomputeClassRating(cls._id);
 
   return res.status(201).json({
     success: true,
@@ -74,6 +79,7 @@ router.patch('/:id', requireAuth, async (req: AuthRequest, res) => {
   if (rating !== undefined) review.rating = rating;
   if (comment !== undefined) review.comment = comment;
   await review.save();
+  await recomputeClassRating(review.classId);
 
   return res.json({
     success: true,
@@ -92,6 +98,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
   }
 
   await review.deleteOne();
+  await recomputeClassRating(review.classId);
 
   return res.json({
     success: true,

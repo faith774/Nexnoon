@@ -1,5 +1,5 @@
-import BackendDashboard from '@/app/components/BackendDashboard';
+import InstructorStudio from '@/app/components/studio/InstructorStudio';
 
 export default function Analytics() {
-  return <BackendDashboard view="analytics" />;
+  return <InstructorStudio defaultTab="performance" />;
 }

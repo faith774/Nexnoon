@@ -1,264 +1,425 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { 
-  Search, HelpCircle, BookOpen, Video, DollarSign, 
-  Settings, MessageCircle, ChevronRight, ChevronDown 
+import {
+  ArrowRight,
+  BookOpen,
+  ChevronDown,
+  Clock3,
+  GraduationCap,
+  LifeBuoy,
+  MessageCircle,
+  Search,
+  Settings2,
+  Video,
+  Wallet,
 } from 'lucide-react';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
-import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 
+const categories = [
+  {
+    id: 'getting-started',
+    icon: GraduationCap,
+    title: 'Getting Started',
+    description: 'Create your account, set up your profile, and take your first class.',
+    articles: 12,
+    image:
+      'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'live-classes',
+    icon: Video,
+    title: 'Live Classes',
+    description: 'Join sessions, use the classroom, and catch up with recordings.',
+    articles: 8,
+    image:
+      'https://images.unsplash.com/photo-1588196749767-a8fc7c60c447?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'payments',
+    icon: Wallet,
+    title: 'Payments & Billing',
+    description: 'Enrollments, receipts, refunds, and subscription management.',
+    articles: 6,
+    image:
+      'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'account',
+    icon: Settings2,
+    title: 'Account Settings',
+    description: 'Preferences, notifications, privacy, and security controls.',
+    articles: 10,
+    image:
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=900&q=80',
+  },
+];
+
+const faqs = [
+  {
+    question: 'How do I join a live class?',
+    answer:
+      'Open My Classes, select your class and click Join Class. You can join from a few minutes before the start time; if your instructor hasn’t started yet, we’ll let you in automatically as soon as they do. Times are shown in your own time zone.',
+  },
+  {
+    question: 'Can I watch recordings of missed classes?',
+    answer:
+      'When your instructor records a session, the recording appears on that session in your classroom once it has finished, so you can catch up at your own pace.',
+  },
+  {
+    question: 'What payment methods do you accept?',
+    answer:
+      'We accept major cards (Visa, Mastercard, American Express) and other methods enabled in your region. Payments are processed securely through our payment partners.',
+  },
+  {
+    question: 'How do I get a refund?',
+    answer:
+      'You can request a refund within 14 days of purchase if you have attended no more than two live sessions. Go to Settings → Billing and choose Request Refund.',
+  },
+  {
+    question: 'Can I download course materials?',
+    answer:
+      'When instructors share files, you will find them in Materials inside the classroom—PDFs, slides, links, and other resources.',
+  },
+  {
+    question: 'How do I earn a certificate?',
+    answer:
+      'Complete required assignments, attend at least 80% of live sessions, and meet the passing criteria. Certificates are issued automatically when you qualify.',
+  },
+  {
+    question: 'What if I have technical issues during a live class?',
+    answer:
+      'Refresh your browser and confirm a stable connection. If issues continue, leave and rejoin the session, then contact support if you still need help.',
+  },
+  {
+    question: 'Can I become an instructor on Nexnoon?',
+    answer:
+      'Yes. Choose Teach in the navigation to apply. We review applications within a few business days and will guide you through approval and class setup.',
+  },
+];
+
+const popularArticles = [
+  { title: 'How to Set Up Your Profile', category: 'Getting Started', time: '3 min read' },
+  { title: 'Troubleshooting Video Connection Issues', category: 'Technical', time: '5 min read' },
+  { title: 'Understanding the Classroom Layout', category: 'Live Classes', time: '4 min read' },
+  { title: 'Managing Your Subscriptions', category: 'Billing', time: '2 min read' },
+  { title: 'How to Submit Assignments', category: 'Classes', time: '3 min read' },
+];
+
 export default function Help() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
+  const [activeCategory, setActiveCategory] = useState(categories[0].id);
 
-  const categories = [
-    {
-      icon: BookOpen,
-      title: 'Getting Started',
-      description: 'Learn the basics of using Nexnoon',
-      articles: 12,
-      image: 'https://images.unsplash.com/photo-1759984782106-4b56d0aa05b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvbmxpbmUlMjBsZWFybmluZyUyMHN0dWRlbnR8ZW58MXx8fHwxNzY5MTQ4NzY0fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    },
-    {
-      icon: Video,
-      title: 'Live Classes',
-      description: 'How to join and participate in live sessions',
-      articles: 8,
-      image: 'https://images.unsplash.com/photo-1707945272785-38071d393b5f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aWRlbyUyMGNvbmZlcmVuY2UlMjB0ZWFjaGluZ3xlbnwxfHx8fDE3NjkxNzQ1NDF8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    },
-    {
-      icon: DollarSign,
-      title: 'Payments & Billing',
-      description: 'Manage subscriptions and payments',
-      articles: 6,
-      image: 'https://images.unsplash.com/photo-1648161235864-00702f154f09?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwYXltZW50JTIwY3JlZGl0JTIwY2FyZHxlbnwxfHx8fDE3NjkxNTUxMzl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    },
-    {
-      icon: Settings,
-      title: 'Account Settings',
-      description: 'Customize your account preferences',
-      articles: 10,
-      image: 'https://images.unsplash.com/photo-1767449441925-737379bc2c4d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzZXR0aW5ncyUyMGludGVyZmFjZSUyMGRhc2hib2FyZHxlbnwxfHx8fDE3NjkxNjE2MDV8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    },
-  ];
+  const q = searchQuery.trim().toLowerCase();
 
-  const faqs = [
-    {
-      question: 'How do I join a live class?',
-      answer: 'To join a live class, go to "My Classes", select the class you\'re enrolled in, and click "Join Live Session" when it\'s time. You\'ll be taken to a waiting room before the instructor starts the session.',
-    },
-    {
-      question: 'Can I watch recordings of missed classes?',
-      answer: 'Yes! All live classes are automatically recorded and available in your classroom. Navigate to the class page and click on "Recordings" to access past sessions.',
-    },
-    {
-      question: 'What payment methods do you accept?',
-      answer: 'We accept all major credit cards (Visa, Mastercard, American Express), PayPal, and bank transfers. All payments are processed securely through our payment partners.',
-    },
-    {
-      question: 'How do I get a refund?',
-      answer: 'You can request a refund within 14 days of purchase if you haven\'t attended more than 2 live sessions. Go to Settings > Billing and click "Request Refund" next to the course.',
-    },
-    {
-      question: 'Can I download course materials?',
-      answer: 'Yes! Nexnoon Experts can provide downloadable materials like PDFs, slides, and code files. You can find these in the "Materials" section of your classroom.',
-    },
-    {
-      question: 'How do I earn a certificate?',
-      answer: 'To earn a certificate, you must complete all required assignments, attend at least 80% of live sessions, and achieve a passing grade. Certificates are automatically issued upon completion.',
-    },
-    {
-      question: 'What if I have technical issues during a live class?',
-      answer: 'If you experience technical issues, try refreshing your browser first. Make sure you have a stable internet connection. You can also check our system status page or contact support for immediate help.',
-    },
-    {
-      question: 'Can I become an instructor on Nexnoon?',
-      answer: 'Absolutely! Click on "Teach" in the navigation menu to apply. We review all applications within 2-3 business days. You\'ll need to provide information about your expertise and the classes you want to teach.',
-    },
-  ];
+  const filteredFaqs = useMemo(() => {
+    if (!q) return faqs;
+    return faqs.filter(
+      (f) => f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q)
+    );
+  }, [q]);
 
-  const popularArticles = [
-    { title: 'How to Set Up Your Profile', category: 'Getting Started', time: '3 min read' },
-    { title: 'Troubleshooting Video Connection Issues', category: 'Technical', time: '5 min read' },
-    { title: 'Understanding the Classroom Layout', category: 'Live Classes', time: '4 min read' },
-    { title: 'Managing Your Subscriptions', category: 'Billing', time: '2 min read' },
-    { title: 'How to Submit Assignments', category: 'Classes', time: '3 min read' },
-  ];
+  const filteredArticles = useMemo(() => {
+    if (!q) return popularArticles;
+    return popularArticles.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) || a.category.toLowerCase().includes(q)
+    );
+  }, [q]);
+
+  const activeTopic = categories.find((c) => c.id === activeCategory) || categories[0];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f7f5f1] text-[#14110e]">
       <Header variant="light" />
-      
+
       <main>
-        {/* Hero Section with Background Image */}
-        <div className="relative py-20 overflow-hidden">
-          {/* Background Image */}
+        {/* Help hero */}
+        <section className="relative min-h-[52vh] flex items-end overflow-hidden">
           <div className="absolute inset-0">
             <ImageWithFallback
-              src="https://images.unsplash.com/photo-1738598647432-9ec379ca2291?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoZWxwJTIwZGVzayUyMHN1cHBvcnR8ZW58MXx8fHwxNzY5MDY2ODk0fDA&ixlib=rb-4.1.0&q=80&w=1080"
-              alt="Help Center"
-              className="w-full h-full object-cover"
+              src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=1800&q=80"
+              alt=""
+              className="h-full w-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/70" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#14110e] via-[#14110e]/75 to-[#14110e]/35" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(136,157,209,0.28),transparent_55%)]" />
           </div>
 
-          {/* Hero Content */}
-          <div className="relative w-[90vw] max-w-6xl mx-auto text-center">
-            <h1 className="text-4xl font-bold text-white mb-4">How can we help you?</h1>
-            <p className="text-white/90 mb-8">
-              Search our help center or browse categories below
+          <div className="relative w-[90vw] max-w-5xl mx-auto pt-28 pb-14 md:pb-16">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/55 mb-4">
+              Nexnoon Help Center
+            </p>
+            <h1 className="font-serif text-4xl sm:text-5xl md:text-[3.4rem] tracking-tight text-white leading-[1.05] max-w-3xl">
+              How can we help?
+            </h1>
+            <p className="mt-4 text-base md:text-lg text-white/70 max-w-xl leading-relaxed">
+              Guides for learners and instructors—search articles, browse topics, or jump into FAQs.
             </p>
 
-            {/* Search */}
-            <div className="max-w-2xl mx-auto relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
-              <Input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for help articles, guides, and FAQs..."
-                className="pl-12 pr-4 py-6 text-base rounded-xl border-gray-300 shadow-lg bg-white"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="py-12 bg-gray-50">
-          <div className="w-[90vw] max-w-6xl mx-auto">
-            {/* Categories with Images */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              {categories.map((category, index) => {
-                const Icon = category.icon;
-                return (
-                  <button
-                    key={index}
-                    className="bg-white border border-gray-300 rounded-xl overflow-hidden text-left hover:shadow-lg hover:border-gray-400 transition-all group"
-                  >
-                    {/* Image Section */}
-                    <div className="relative h-32 overflow-hidden bg-gray-100">
-                      <ImageWithFallback
-                        src={category.image}
-                        alt={category.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                      <div className="absolute bottom-3 left-3 w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-lg">
-                        <Icon className="h-5 w-5 text-black" />
-                      </div>
-                    </div>
-                    
-                    {/* Content Section */}
-                    <div className="p-5">
-                      <h3 className="font-bold text-black mb-2">{category.title}</h3>
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{category.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{category.articles} articles</span>
-                        <ChevronRight className="h-4 w-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Popular Articles */}
-            <div className="bg-white border border-gray-300 rounded-xl p-8 mb-12">
-              <h2 className="text-2xl font-bold text-black mb-6">Popular Articles</h2>
-              <div className="space-y-3">
-                {popularArticles.map((article, index) => (
-                  <button
-                    key={index}
-                    className="w-full flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors group"
-                  >
-                    <div className="flex items-center gap-4">
-                      <BookOpen className="h-5 w-5 text-gray-400" />
-                      <div className="text-left">
-                        <h3 className="font-bold text-black group-hover:text-gray-700">
-                          {article.title}
-                        </h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>{article.category}</span>
-                          <span>•</span>
-                          <span>{article.time}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-gray-400 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* FAQs */}
-            <div className="bg-white border border-gray-300 rounded-xl p-8">
-              <h2 className="text-2xl font-bold text-black mb-6">Frequently Asked Questions</h2>
-              <div className="space-y-3">
-                {faqs.map((faq, index) => (
-                  <div
-                    key={index}
-                    className="border border-gray-300 rounded-lg overflow-hidden"
-                  >
-                    <button
-                      onClick={() => setExpandedFaq(expandedFaq === index ? null : index)}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
-                    >
-                      <span className="font-bold text-black pr-4">{faq.question}</span>
-                      <ChevronDown
-                        className={`h-5 w-5 text-gray-600 flex-shrink-0 transition-transform ${
-                          expandedFaq === index ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </button>
-                    {expandedFaq === index && (
-                      <div className="px-4 pb-4 text-gray-600 border-t border-gray-200 pt-4">
-                        {faq.answer}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Contact Support with Background Image */}
-            <div className="mt-12 relative rounded-2xl overflow-hidden">
-              <div className="absolute inset-0">
-                <ImageWithFallback
-                  src="https://images.unsplash.com/photo-1618544976420-1f213fcf2052?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjdXN0b21lciUyMHN1cHBvcnQlMjB0ZWFtfGVufDF8fHx8MTc2OTA5MjYyNXww&ixlib=rb-4.1.0&q=80&w=1080"
-                  alt="Customer Support"
-                  className="w-full h-full object-cover"
+            <form
+              className="mt-8 max-w-2xl"
+              onSubmit={(e) => e.preventDefault()}
+              role="search"
+            >
+              <label htmlFor="help-search" className="sr-only">
+                Search help articles
+              </label>
+              <div className="relative flex items-center rounded-2xl bg-white shadow-[0_20px_50px_-28px_rgba(0,0,0,0.55)] ring-1 ring-black/5">
+                <Search className="absolute left-4 h-5 w-5 text-[#8a847a]" />
+                <input
+                  id="help-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search classes, billing, certificates…"
+                  className="w-full rounded-2xl bg-transparent py-4 pl-12 pr-28 text-[15px] text-[#14110e] placeholder:text-[#9a948a] outline-none"
                 />
-                <div className="absolute inset-0 bg-gradient-to-br from-black/90 via-black/80 to-gray-900/90" />
+                <span className="absolute right-2 hidden sm:inline-flex items-center rounded-xl bg-[#14110e] px-3 py-2 text-xs font-medium text-white/90">
+                  Enter
+                </span>
               </div>
-              
-              <div className="relative p-8 text-center text-white">
-                <MessageCircle className="h-12 w-12 mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Still need help?</h2>
-                <p className="text-white/80 mb-6 max-w-lg mx-auto">
-                  Our support team is available 24/7 to assist you with any questions or concerns.
+            </form>
+          </div>
+        </section>
+
+        <div className="w-[90vw] max-w-6xl mx-auto py-12 md:py-16 space-y-16 md:space-y-20">
+          {/* Topics */}
+          <section>
+            <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a847a] mb-2">
+                  Browse by topic
                 </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link to="/contact">
-                    <Button className="bg-white text-black hover:bg-gray-100 rounded-lg">
-                      Contact Support
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="outline"
-                    className="border-white text-white hover:bg-white/10 rounded-lg"
+                <h2 className="font-serif text-3xl tracking-tight">Help topics</h2>
+              </div>
+              <p className="text-sm text-[#7a746a] max-w-sm">
+                Pick a topic to focus the guides below—or keep browsing everything.
+              </p>
+            </div>
+
+            <div className="grid lg:grid-cols-12 gap-6 lg:gap-8">
+              <div className="lg:col-span-5 space-y-2">
+                {categories.map((category) => {
+                  const Icon = category.icon;
+                  const active = activeCategory === category.id;
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => setActiveCategory(category.id)}
+                      className={`w-full flex items-start gap-3 rounded-2xl px-4 py-3.5 text-left transition-all duration-200 ${
+                        active
+                          ? 'bg-[#14110e] text-white shadow-lg'
+                          : 'bg-white/70 text-[#14110e] hover:bg-white border border-[#ebe6de]'
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                          active ? 'bg-white/12 text-white' : 'bg-[#f0ebe3] text-[#5c564e]'
+                        }`}
+                      >
+                        <Icon className="h-4.5 w-4.5 h-[18px] w-[18px]" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="font-semibold tracking-tight">{category.title}</span>
+                          <span
+                            className={`text-[11px] tabular-nums ${
+                              active ? 'text-white/55' : 'text-[#9a948a]'
+                            }`}
+                          >
+                            {category.articles}
+                          </span>
+                        </span>
+                        <span
+                          className={`mt-1 block text-sm leading-snug ${
+                            active ? 'text-white/65' : 'text-[#7a746a]'
+                          }`}
+                        >
+                          {category.description}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="lg:col-span-7 relative min-h-[280px] overflow-hidden rounded-[1.75rem]">
+                <ImageWithFallback
+                  src={activeTopic.image}
+                  alt={activeTopic.title}
+                  className="absolute inset-0 h-full w-full object-cover transition-opacity duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#14110e]/90 via-[#14110e]/35 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50 mb-2">
+                    {activeTopic.articles} articles
+                  </p>
+                  <h3 className="font-serif text-2xl sm:text-3xl text-white tracking-tight">
+                    {activeTopic.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-white/70 max-w-md leading-relaxed">
+                    {activeTopic.description}
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#14110e] hover:bg-white/90 transition-colors"
                   >
-                    Live Chat
-                  </Button>
+                    View articles
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
+
+          {/* Popular + FAQ */}
+          <section className="grid lg:grid-cols-12 gap-10 lg:gap-12">
+            <div className="lg:col-span-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a847a] mb-2">
+                Quick reads
+              </p>
+              <h2 className="font-serif text-3xl tracking-tight mb-6">Popular articles</h2>
+
+              {filteredArticles.length === 0 ? (
+                <p className="text-sm text-[#7a746a]">No articles match “{searchQuery}”.</p>
+              ) : (
+                <ul className="divide-y divide-[#ebe6de] border-y border-[#ebe6de]">
+                  {filteredArticles.map((article) => (
+                    <li key={article.title}>
+                      <button
+                        type="button"
+                        className="group flex w-full items-start gap-3 py-4 text-left transition-colors hover:bg-white/60"
+                      >
+                        <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-[#889dd1]" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[15px] font-semibold tracking-tight text-[#14110e] group-hover:text-[#3a5f8a] transition-colors">
+                            {article.title}
+                          </span>
+                          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#8a847a]">
+                            <span>{article.category}</span>
+                            <span aria-hidden>•</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Clock3 className="h-3 w-3" />
+                              {article.time}
+                            </span>
+                          </span>
+                        </span>
+                        <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-[#cfc8bc] transition-transform group-hover:translate-x-0.5 group-hover:text-[#889dd1]" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="lg:col-span-7">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a847a] mb-2">
+                Common questions
+              </p>
+              <h2 className="font-serif text-3xl tracking-tight mb-6">FAQs</h2>
+
+              {filteredFaqs.length === 0 ? (
+                <p className="text-sm text-[#7a746a]">No FAQs match “{searchQuery}”.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {filteredFaqs.map((faq, index) => {
+                    const open = expandedFaq === index;
+                    return (
+                      <div
+                        key={faq.question}
+                        className={`rounded-2xl border transition-colors ${
+                          open
+                            ? 'border-[#14110e]/15 bg-white shadow-[0_12px_40px_-28px_rgba(20,17,14,0.35)]'
+                            : 'border-[#ebe6de] bg-white/50 hover:bg-white'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setExpandedFaq(open ? null : index)}
+                          aria-expanded={open}
+                          className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                        >
+                          <span className="text-[15px] font-semibold tracking-tight text-[#14110e] pr-2">
+                            {faq.question}
+                          </span>
+                          <span
+                            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors ${
+                              open ? 'bg-[#14110e] text-white' : 'bg-[#f0ebe3] text-[#6b655c]'
+                            }`}
+                          >
+                            <ChevronDown
+                              className={`h-4 w-4 transition-transform duration-200 ${
+                                open ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </span>
+                        </button>
+                        <div
+                          className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+                            open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                          }`}
+                        >
+                          <div className="overflow-hidden">
+                            <p className="px-5 pb-5 text-sm leading-relaxed text-[#6b655c]">
+                              {faq.answer}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Contact */}
+          <section className="relative overflow-hidden rounded-[2rem]">
+            <div className="absolute inset-0">
+              <ImageWithFallback
+                src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1600&q=80"
+                alt=""
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-[#14110e]/88" />
+            </div>
+            <div className="relative grid md:grid-cols-[1.2fr_0.8fr] gap-8 p-8 sm:p-10 md:p-12">
+              <div>
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-white mb-5">
+                  <LifeBuoy className="h-5 w-5" />
+                </span>
+                <h2 className="font-serif text-3xl sm:text-4xl tracking-tight text-white">
+                  Still need a hand?
+                </h2>
+                <p className="mt-3 text-white/65 max-w-md leading-relaxed">
+                  Reach the Nexnoon support team for enrollment, classroom, or billing questions.
+                  We usually reply within one business day.
+                </p>
+              </div>
+              <div className="flex flex-col justify-end gap-3 sm:flex-row md:flex-col md:items-stretch">
+                <Link to="/contact" className="w-full sm:w-auto md:w-full">
+                  <Button className="h-12 w-full rounded-2xl bg-white text-[#14110e] hover:bg-white/90 font-semibold">
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Contact support
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  className="h-12 w-full rounded-2xl border-white/25 bg-transparent text-white hover:bg-white/10 font-medium"
+                >
+                  Start live chat
+                </Button>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

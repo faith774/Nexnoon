@@ -50,25 +50,25 @@ function AssignmentCard({ classId, assignment, submission, onChanged }: {
   };
 
   return (
-    <article className="border border-gray-200 rounded-xl p-4 mb-4">
+    <article className="border border-[#e4dfd6] bg-white p-4 mb-4">
       <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
-        <h3 className="font-bold text-gray-900">{assignment.title}</h3>
-        {badge && <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${badge.className}`}>{badge.label}</span>}
+        <h3 className="font-medium text-[#14110e]">{assignment.title}</h3>
+        {badge && <span className={`text-xs font-medium px-2 py-0.5 whitespace-nowrap ${badge.className}`}>{badge.label}</span>}
       </div>
-      {assignment.description && <p className="text-sm text-gray-600 mb-3">{assignment.description}</p>}
+      {assignment.description && <p className="text-sm text-[#3d3933] mb-3">{assignment.description}</p>}
       {assignment.attachmentUrl && <div className="mb-3"><FileAttachment url={assignment.attachmentUrl} /></div>}
 
       {submission && !editing ? (
-        <div className="bg-green-50 border border-green-100 rounded-lg p-3">
-          <p className="flex items-center gap-1.5 text-sm font-medium text-green-700 mb-1">
+        <div className="bg-emerald-50 border border-emerald-100 p-3">
+          <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-800 mb-1">
             <CheckCircle2 className="h-4 w-4" /> Submitted {new Date(submission.submittedAt).toLocaleString()}
           </p>
-          {submission.content && <p className="text-sm text-gray-700 whitespace-pre-line mb-2">{submission.content}</p>}
+          {submission.content && <p className="text-sm text-[#3d3933] whitespace-pre-line mb-2">{submission.content}</p>}
           {submission.attachmentUrl && <FileAttachment url={submission.attachmentUrl} />}
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="text-xs font-medium text-gray-600 hover:text-gray-900 underline mt-2"
+            className="text-xs font-medium text-[#6b655c] hover:text-[#14110e] underline mt-2"
           >
             Update submission
           </button>
@@ -80,7 +80,7 @@ function AssignmentCard({ classId, assignment, submission, onChanged }: {
             onChange={(e) => setContent(e.target.value)}
             placeholder="Write your answer…"
             rows={3}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-2"
+            className="w-full border border-[#e4dfd6] px-3 py-2 text-sm mb-2 outline-none focus:border-[#14110e]"
           />
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -92,13 +92,13 @@ function AssignmentCard({ classId, assignment, submission, onChanged }: {
               type="button"
               onClick={handleSubmit}
               disabled={saving}
-              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-black text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 bg-[#14110e] text-white hover:bg-black/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               {saving ? 'Submitting…' : submission ? 'Save changes' : 'Submit answer'}
             </button>
             {submission && (
-              <button type="button" onClick={() => setEditing(false)} className="text-xs text-gray-500 hover:text-gray-900">
+              <button type="button" onClick={() => setEditing(false)} className="text-xs text-[#6b655c] hover:text-[#14110e]">
                 Cancel
               </button>
             )}
@@ -117,7 +117,13 @@ export default function StudentAssignments({ classId, assignments, submissions, 
   submissions: AssignmentAnswer[];
   onChanged: () => void;
 }) {
-  if (!assignments.length) return <p>No assignments have been added by the instructor.</p>;
+  if (!assignments.length) {
+    return (
+      <p className="text-sm text-[#6b655c] py-8 text-center border border-dashed border-[#ddd6ca]">
+        No assignments have been added by the instructor.
+      </p>
+    );
+  }
 
   return (
     <>

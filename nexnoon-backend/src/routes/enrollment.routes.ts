@@ -9,10 +9,15 @@ import { requireAuth, requireRole, AuthRequest } from "../middleware/auth";
 import { getMaxClassSeats } from "../models/PlatformSettings";
 import Stripe from "stripe";
 import { ENV } from "../config/env";
+import { User } from "../models/User";
+import { buildEnrollmentConfirmationEmail, sendEmailSafe } from "../utils/email";
+import { isStripeConfigured } from "../utils/integrations";
+import { freeClassBlocked } from "../utils/pricing";
+import { syncEarnings } from "../utils/earnings";
 
 const router = Router();
 
-const stripe = ENV.STRIPE_SECRET_KEY
+const stripe = isStripeConfigured()
   ? new Stripe(ENV.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" })
   : null;
 
@@ -52,7 +57,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
     return res.status(404).json({ success: false, message: "Class not found" });
   }
 
-  if (cls.status !== "published") {
+  if (cls.status !== "published" || freeClassBlocked(cls)) {
     return res.status(409).json({ success: false, message: "This class is not open for enrollment" });
   }
   if (String(cls.instructor.id) === req.user!.id) {
@@ -169,6 +174,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
     }
 
     const enrollment = await EnrollmentModel.findOne({ classId: cls.id, userId: req.user!.id });
+    if (paymentRecord) syncEarnings().catch((e) => console.error("Earnings sync failed:", e));
 
     await NotificationModel.create({
       userId: req.user!.id,
@@ -176,8 +182,21 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
       title: "Enrolled successfully",
       message: `You're now enrolled in ${cls.title}`,
       read: false,
-      actionUrl: `/class/${cls.id}`,
+      actionUrl: `/classroom/${cls.id}`,
     }).catch(() => {});
+
+    const learner = await User.findById(req.user!.id).select("fullName email").lean();
+    if (learner?.email) {
+      sendEmailSafe(
+        learner.email,
+        `Enrolled: ${cls.title}`,
+        buildEnrollmentConfirmationEmail({
+          learnerName: learner.fullName,
+          classTitle: cls.title,
+          classId: cls.id,
+        })
+      ).catch(() => {});
+    }
 
     return res.status(201).json({
       success: true,

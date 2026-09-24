@@ -7,7 +7,7 @@ export interface ClassDetails {
   curriculumIntro?: string;
   certificateInfo?: string;
   outcomes?: string[];
-  curriculum?: { title: string; topics: string[]; project: string }[];
+  curriculum?: { id?: string; title: string; topics: string[]; project: string }[];
   faqs?: { question: string; answer: string }[];
 }
 
@@ -48,6 +48,14 @@ export interface RequestParams {
 }
 
 // User & Authentication Types
+/** Optional emails a person has opted into. In-app notifications and cancellations always go out. */
+export interface EmailPrefs {
+  /** `key` = the day before, ~10 minutes before, and at start. */
+  sessionReminders: 'all' | 'key' | 'none';
+  /** New / rescheduled session emails. */
+  scheduleUpdates: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -56,10 +64,30 @@ export interface User {
   fullName: string;
   avatar?: string;
   role: 'student' | 'instructor' | 'admin';
-  instructorStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+  instructorStatus?: 'none' | 'pending' | 'approved' | 'rejected' | 'suspended';
+  /** Short teaching headline (instructors). */
+  headline?: string;
+  bio?: string;
+  languages?: string[];
+  expertise?: string[];
+  /** Courses this instructor is certified to teach. */
+  approvedCourseIds?: string[];
+  /** Learner preferred delivery language. */
+  preferredLanguage?: string;
+  /** IANA timezone for scheduling hints. */
+  timezone?: string;
+  emailPrefs?: EmailPrefs;
   isEmailVerified: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Instructor application details (applicant + admins only). */
+  requestedCourseIds?: string[];
+  yearsExperience?: number | null;
+  teachingExperience?: string;
+  linkedinUrl?: string;
+  portfolioUrl?: string;
+  sampleVideoUrl?: string;
+  applicationUpdatedAt?: string | null;
 }
 
 export interface AuthResponse {
@@ -94,6 +122,8 @@ export interface PasswordResetConfirm {
 export interface Class {
   details?: ClassDetails;
   language?: string;
+  courseId?: string;
+  languageOfferingId?: string;
   maxStudents?: number;
   learningOutcomes?: string[];
   prerequisites?: string[];
@@ -111,8 +141,24 @@ export interface Class {
     name: string;
     avatar?: string;
     bio?: string;
+    headline?: string;
+    languages?: string[];
+    expertise?: string[];
     rating?: number;
   };
+  /** Lead + support instructors. Creator is always lead. */
+  teachingTeam?: {
+    userId: string;
+    name: string;
+    email: string;
+    role: 'lead' | 'support';
+    status: 'pending' | 'accepted' | 'declined' | 'removed';
+    invitedAt?: string;
+    respondedAt?: string;
+    avatar?: string;
+    headline?: string;
+    bio?: string;
+  }[];
   thumbnail?: string;
   duration: number; // in minutes
   totalSessions: number;
@@ -123,7 +169,11 @@ export interface Class {
   startDate?: string;
   endDate?: string;
   schedule?: ClassSchedule[];
+  /** IANA timezone the class is scheduled in. */
+  timezone?: string;
   status: 'draft' | 'published' | 'archived';
+  cancelledAt?: string;
+  cancellationReason?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -131,6 +181,8 @@ export interface Class {
 export interface ClassSchedule {
   id: string;
   classId: string;
+  /** Links to `details.curriculum[].id`. Missing = unassigned / legacy. */
+  moduleId?: string;
   sessionNumber: number;
   title: string;
   description?: string;
@@ -141,6 +193,14 @@ export interface ClassSchedule {
   zoomPasscode?: string;
   status: 'scheduled' | 'live' | 'completed' | 'cancelled';
   recordingUrl?: string;
+  /** A platform Zoom meeting exists for this session. */
+  hasZoomMeeting?: boolean;
+  /** Any room exists (platform Zoom or the instructor's own link). Learners only get this, never the link itself. */
+  hasMeeting?: boolean;
+  meetingProvider?: 'zoom' | 'external' | null;
+  /** Instructor's own meeting link (teaching team only). */
+  meetingUrl?: string;
+  meetingCreationStatus?: 'pending' | 'creating' | 'ready' | 'failed' | 'skipped';
 }
 
 /** A student's answer to one of a class's embedded `assignments` entries. */
@@ -158,6 +218,8 @@ export interface CreateClassRequest {
   details?: ClassDetails;
   thumbnail?: string;
   language?: string;
+  courseId?: string;
+  languageOfferingId?: string;
   maxStudents?: number;
   learningOutcomes?: string[];
   prerequisites?: string[];
@@ -171,6 +233,8 @@ export interface CreateClassRequest {
   duration: number;
   totalSessions: number;
   startDate?: string;
+  /** IANA zone the schedule's wall-clock times are set in. */
+  timezone?: string;
   schedule?: (Omit<ClassSchedule, 'id' | 'classId' | 'status'> & { status?: ClassSchedule['status'] })[];
 }
 
@@ -196,6 +260,61 @@ export interface EnrollmentRequest {
   classId: string;
   paymentMethodId?: string;
 }
+
+// Course / marketplace types (PRD: Course → Language → Class)
+export interface LanguageOffering {
+  id: string;
+  code: string;
+  label: string;
+  status: 'active' | 'inactive' | string;
+}
+
+export interface Course {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  outcomes: string[];
+  curriculumTemplate?: { id: string; title: string; description?: string }[];
+  officialPreviewUrl?: string;
+  certificateNotes?: string;
+  category?: string;
+  languageOfferings?: LanguageOffering[];
+  pricing?: { minPrice: number | null; maxPrice: number | null };
+  status: 'draft' | 'published' | 'archived' | string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CourseClassCard {
+  id: string;
+  title: string;
+  description?: string;
+  category?: string;
+  level?: string;
+  price: number;
+  currency?: string;
+  language?: string;
+  courseId?: string;
+  languageOfferingId?: string;
+  thumbnail?: string;
+  duration?: number;
+  startDate?: string;
+  enrolledStudents: number;
+  maxStudents: number;
+  seatsLeft: number;
+  fillRate: number;
+  rating?: number;
+  instructor?: { id?: string; name?: string; avatar?: string };
+  status?: string;
+}
+
+export interface CourseMarketplacePage {
+  course: Course;
+  classes: CourseClassCard[];
+  seatCap: number;
+}
+
 
 // Payment Types
 export interface Payment {

@@ -6,7 +6,10 @@ import { EnrollmentModel } from '../models/Enrollment';
 import { User } from '../models/User';
 import { verifyZoomWebhookSignature, hashZoomWebhookValidationToken } from '../utils/zoom';
 import { notifyClassSessionStarted } from '../utils/notify';
+import { confirmAttendance } from '../utils/attendance';
 import { rateLimit } from '../middleware/rateLimit';
+import { ENV } from '../config/env';
+import { isValidObjectId } from 'mongoose';
 
 interface RawBodyRequest extends Request {
   rawBody?: Buffer;
@@ -76,8 +79,10 @@ router.post('/', async (req: RawBodyRequest, res) => {
         // (class.routes.ts's /start endpoint) has already flipped this to 'live'
         // and notified them, so this webhook delivery is just Zoom confirming
         // what already happened and must not re-notify.
+        // A host warming up days early (testing audio, etc.) must not open joining for every learner.
+        const hostOpensBefore = new Date(Date.now() + ENV.LIVE_CLASS_HOST_EARLY_MINUTES * 60_000);
         const session = await ClassScheduleModel.findOneAndUpdate(
-          { zoomMeetingId: meetingId, status: 'scheduled' },
+          { zoomMeetingId: meetingId, status: 'scheduled', startTime: { $lte: hostOpensBefore } },
           { $set: { status: 'live' } }
         );
         if (session) {
@@ -98,38 +103,68 @@ router.post('/', async (req: RawBodyRequest, res) => {
         // Goes straight to 'completed' - there's no separate finalization step in
         // this MVP, so the moment Zoom reports the meeting stopped, the session is
         // done for the instructor and every student alike.
+        // Ended before the scheduled start = a test run or false start: reopen instead of closing the session for good.
+        const ended = await ClassScheduleModel.findOne({ zoomMeetingId: meetingId, status: { $in: ['scheduled', 'live'] } });
+        if (!ended) break;
+        ended.status = Date.now() < new Date(ended.startTime).getTime() ? 'scheduled' : 'completed';
+        await ended.save();
+        break;
+      }
+      case 'recording.completed': {
+        if (!meetingId) break;
+        const shareUrl = req.body?.payload?.object?.share_url as string | undefined;
+        if (!shareUrl || !/^https:\/\//i.test(shareUrl)) break;
+        // Never overwrite a link the instructor chose themselves.
         await ClassScheduleModel.updateOne(
-          { zoomMeetingId: meetingId, status: { $in: ['scheduled', 'live'] } },
-          { $set: { status: 'completed' } }
+          { zoomMeetingId: meetingId, $or: [{ recordingUrl: { $exists: false } }, { recordingUrl: null }, { recordingUrl: '' }] },
+          { $set: { recordingUrl: shareUrl } }
         );
         break;
       }
       case 'meeting.participant_joined':
       case 'meeting.participant_left': {
         if (!meetingId) break;
-        const participantEmail = req.body?.payload?.object?.participant?.email as string | undefined;
-        // Only correlate when Zoom gives us a verified participant email that matches
-        // an authenticated Nexnoon user with an active enrollment in this session's
-        // class. Anything else is left unmatched rather than guessed.
-        if (!participantEmail) break;
+        const participant = req.body?.payload?.object?.participant || {};
+        const participantEmail = participant.email as string | undefined;
+        // customer_key is the Nexnoon user id we pass on SDK join; email is the fallback for Zoom-app joins.
+        // Anything else is left unmatched rather than guessed.
+        const customerKey = typeof participant.customer_key === 'string' && isValidObjectId(participant.customer_key) ? participant.customer_key : null;
+        if (!customerKey && !participantEmail) break;
         const session = await ClassScheduleModel.findOne({ zoomMeetingId: meetingId });
         if (!session) break;
 
-        const user = await User.findOne({ email: participantEmail.toLowerCase() });
+        const user = customerKey
+          ? await User.findById(customerKey)
+          : await User.findOne({ email: participantEmail!.toLowerCase() });
         if (!user) break;
         const enrollment = await EnrollmentModel.findOne({ classId: session.classId, userId: user.id });
         if (!enrollment) break;
 
-        const record = await AttendanceRecordModel.findOne({ sessionId: session.id, userId: user.id });
-        if (!record) break; // no authorized-join row yet - don't fabricate attendance
-
         const eventTimestamp = req.body?.payload?.object?.participant?.join_time
           || req.body?.payload?.object?.participant?.leave_time
           || new Date().toISOString();
+        const at = new Date(eventTimestamp);
 
-        if (event === 'meeting.participant_joined' && !record.zoomJoinedAt) {
-          record.zoomJoinedAt = new Date(eventTimestamp);
-        } else if (event === 'meeting.participant_left') {
+        let record = await AttendanceRecordModel.findOne({ sessionId: session.id, userId: user.id });
+        if (event === 'meeting.participant_joined') {
+          // A signed Zoom event is proof of presence, even if they joined straight from the Zoom app.
+          if (!record) {
+            if (enrollment.status !== 'active') break;
+            record = new AttendanceRecordModel({
+              classId: session.classId,
+              sessionId: session.id,
+              userId: user.id,
+              enrollmentId: enrollment.id,
+              authorizedAt: at,
+              pendingJoin: true,
+            });
+          }
+          if (!record.zoomJoinedAt) await confirmAttendance(record, session, 'zoom', at);
+          break;
+        }
+        if (!record) break;
+
+        if (event === 'meeting.participant_left') {
           record.zoomLeftAt = new Date(eventTimestamp);
           if (record.zoomJoinedAt) {
             record.durationSeconds = Math.max(
@@ -146,6 +181,9 @@ router.post('/', async (req: RawBodyRequest, res) => {
     }
   } catch (error) {
     console.error(`Zoom webhook handling failed for event type ${event}:`, error instanceof Error ? error.message : error);
+    // Forget the delivery so Zoom's retry is processed instead of being dropped as a duplicate.
+    await ZoomWebhookEventModel.deleteOne({ eventId }).catch(() => {});
+    return res.status(500).json({ success: false, message: 'Webhook processing failed' });
   }
 
   return res.status(200).json({ success: true, data: null });

@@ -13,6 +13,14 @@ export interface IAssignmentSubmission extends Document {
   content?: string;
   attachmentUrl?: string;
   submittedAt: Date;
+  grade?: {
+    score: number;
+    maxScore: number;
+    feedback?: string;
+    gradedAt: Date;
+    gradedBy: Types.ObjectId;
+    gradedByName?: string;
+  };
 }
 
 const AssignmentSubmissionSchema = new Schema<IAssignmentSubmission>(
@@ -23,6 +31,17 @@ const AssignmentSubmissionSchema = new Schema<IAssignmentSubmission>(
     content: { type: String },
     attachmentUrl: { type: String },
     submittedAt: { type: Date, default: Date.now },
+    grade: {
+      type: {
+        score: { type: Number, required: true, min: 0 },
+        maxScore: { type: Number, required: true, min: 1 },
+        feedback: { type: String, maxlength: 5000 },
+        gradedAt: { type: Date, required: true },
+        gradedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+        gradedByName: { type: String },
+      },
+      required: false,
+    },
   },
   { timestamps: true }
 );

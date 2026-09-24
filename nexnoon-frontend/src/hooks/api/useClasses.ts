@@ -200,11 +200,21 @@ export function useAddSession(classId: string) {
   
   return useMutation({
     mutationFn: (session: Omit<ClassSchedule, 'id' | 'classId'>) =>
-      classService.addSession(classId, session),
-    onSuccess: () => {
+      classService.addSession(classId, {
+        sessionNumber: session.sessionNumber,
+        title: session.title,
+        description: session.description,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        status: session.status || 'scheduled',
+        moduleId: session.moduleId,
+        ...(session.meetingUrl ? { meetingUrl: session.meetingUrl } : {}),
+      }),
+    onSuccess: (data, _vars, _ctx) => {
       queryClient.invalidateQueries({ queryKey: CLASS_KEYS.schedule(classId) });
-      
-      toast.success('Session added successfully');
+      queryClient.invalidateQueries({ queryKey: CLASS_KEYS.detail(classId) });
+      queryClient.invalidateQueries({ queryKey: CLASS_KEYS.myClasses() });
+      toast.success('Session saved');
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));
@@ -220,11 +230,35 @@ export function useUpdateSession(classId: string) {
   
   return useMutation({
     mutationFn: ({ sessionId, data }: { sessionId: string; data: Partial<ClassSchedule> }) =>
-      classService.updateSession(classId, sessionId, data),
+      classService.updateSession(classId, sessionId, {
+        title: data.title,
+        description: data.description,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        moduleId: data.moduleId,
+        status: data.status,
+        meetingUrl: data.meetingUrl,
+        recordingUrl: data.recordingUrl,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CLASS_KEYS.schedule(classId) });
-      
-      toast.success('Session updated successfully');
+      queryClient.invalidateQueries({ queryKey: CLASS_KEYS.detail(classId) });
+      toast.success('Session updated');
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error));
+    },
+  });
+}
+
+/** Create (or retry creating) the platform Zoom meeting for a session. */
+export function useEnsureZoomMeeting(classId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => classService.ensureZoomMeeting(classId, sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CLASS_KEYS.schedule(classId) });
+      toast.success('Zoom meeting ready');
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));
@@ -242,8 +276,9 @@ export function useDeleteSession(classId: string) {
     mutationFn: (sessionId: string) => classService.deleteSession(classId, sessionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CLASS_KEYS.schedule(classId) });
-      
-      toast.success('Session deleted successfully');
+      queryClient.invalidateQueries({ queryKey: CLASS_KEYS.detail(classId) });
+      queryClient.invalidateQueries({ queryKey: CLASS_KEYS.myClasses() });
+      toast.success('Session removed');
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));

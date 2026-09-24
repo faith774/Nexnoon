@@ -1,17 +1,23 @@
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetClose } from '@/app/components/ui/sheet';
 import { useBackendData } from '@/hooks/useBackendData';
-import { Search, Menu, User, LogOut, Bell, HelpCircle, Settings as SettingsIcon } from "lucide-react";
+import { Menu, User, LogOut, Bell, HelpCircle, Settings as SettingsIcon, BookOpen } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "@/contexts/AuthContext";
+import ClassSearchAutocomplete from '@/app/components/ClassSearchAutocomplete';
+import AdminPortalHeader from '@/app/components/AdminPortalHeader';
+import { isAdminPortalHost } from '@/lib/portal';
 
 interface HeaderProps {
   variant?: "default" | "light";
 }
 
-export default function Header({ variant = "light" }: HeaderProps) {
+export default function Header(props: HeaderProps) {
+  return isAdminPortalHost() ? <AdminPortalHeader /> : <SiteHeader {...props} />;
+}
+
+function SiteHeader({ variant = "light" }: HeaderProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -46,6 +52,13 @@ export default function Header({ variant = "light" }: HeaderProps) {
   const forceLight = variant === "light";
   const showWhiteBg = forceLight || isScrolled;
 
+  const teachHref =
+    isAuthenticated && user?.role === 'instructor'
+      ? user.instructorStatus === 'approved'
+        ? '/instructor/dashboard'
+        : '/instructor/pending-approval'
+      : '/teach';
+
   return (
     <header className={`sticky top-0 z-50 transition-all duration-300 ${
       showWhiteBg ? "bg-white border-b border-black/10 shadow-sm" : "bg-black/5 backdrop-blur-sm"
@@ -67,17 +80,12 @@ export default function Header({ variant = "light" }: HeaderProps) {
           {/* Search Bar */}
           {showWhiteBg && (
             <div className="hidden md:flex flex-1 max-w-md mx-4">
-              <form className="relative w-full" onSubmit={e => { e.preventDefault(); if (searchQuery.trim()) navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`); }}>
-                <Input
-                  type="text"
-                  placeholder="What do you want to learn?"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  aria-label="Search classes"
-                  className="w-full pl-4 pr-11 py-3.5 text-sm rounded-full border border-gray-200 focus-visible:border-black focus-visible:ring-0 focus-visible:outline-none transition-colors bg-white text-black h-auto cursor-pointer"
-                />
-                <button type="submit" aria-label="Search" className="absolute right-4 top-1/2 -translate-y-1/2"><Search className="h-4 w-4 text-black" /></button>
-              </form>
+              <ClassSearchAutocomplete
+                variant="header"
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder="What do you want to learn?"
+              />
             </div>
           )}
 
@@ -89,7 +97,7 @@ export default function Header({ variant = "light" }: HeaderProps) {
             <Link to="/categories" className={`${showWhiteBg ? "text-black/70 hover:text-black" : "text-white/70 hover:text-white"} transition-colors text-sm font-medium`}>
               Categories
             </Link>
-            <Link to="/teach" className={`${showWhiteBg ? "text-black/70 hover:text-black" : "text-white/70 hover:text-white"} transition-colors text-sm font-medium`}>
+            <Link to={teachHref} className={`${showWhiteBg ? "text-black/70 hover:text-black" : "text-white/70 hover:text-white"} transition-colors text-sm font-medium`}>
               Teach
             </Link>
           </nav>
@@ -138,12 +146,32 @@ export default function Header({ variant = "light" }: HeaderProps) {
                         <User className="h-4 w-4" />
                         Profile
                       </Link>
+                      {user?.role === 'admin' && (
+                        <Link
+                          to="/admin/dashboard"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <SettingsIcon className="h-4 w-4" />
+                          Admin dashboard
+                        </Link>
+                      )}
+                      {user?.role === 'instructor' && (
+                        <Link
+                          to="/instructor/dashboard"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <User className="h-4 w-4" />
+                          Instructor studio
+                        </Link>
+                      )}
                       <Link
                         to="/my-classes"
                         onClick={() => setShowUserMenu(false)}
                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
-                        <Search className="h-4 w-4" />
+                        <BookOpen className="h-4 w-4" />
                         My Classes
                       </Link>
                       <Link
@@ -192,16 +220,28 @@ export default function Header({ variant = "light" }: HeaderProps) {
                   <SheetTitle className="text-2xl font-bold">Nexnoon</SheetTitle>
                   <SheetDescription>Find your next class and manage your learning.</SheetDescription>
                 </SheetHeader>
-                <form className="px-6 flex gap-2" onSubmit={e => { e.preventDefault(); if (searchQuery.trim()) { setMobileOpen(false); navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`); } }}>
-                  <Input aria-label="Search classes" placeholder="Search classes" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                  <Button type="submit" size="icon" aria-label="Search"><Search className="h-4 w-4" /></Button>
-                </form>
+                <div className="px-6">
+                  <ClassSearchAutocomplete
+                    variant="header"
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Search classes"
+                    onClose={() => setMobileOpen(false)}
+                  />
+                </div>
                 <nav aria-label="Mobile navigation" className="px-4 pb-6 space-y-1">
                   {[
-                    ['/', 'Home'], ['/browse', 'Browse'], ['/categories', 'Categories'], ['/teach', 'Teach'],
-                    ...(isAuthenticated ? [['/my-classes', 'My Classes'], ...(user?.role === 'instructor' ? [['/instructor/dashboard', 'Teacher Dashboard']] : []), ['/notifications', 'Notifications'], ['/profile', 'Profile'], ['/settings', 'Settings']] : [['/login', 'Log In'], ['/signup', 'Sign Up']]),
+                    ['/', 'Home'], ['/browse', 'Browse'], ['/categories', 'Categories'], [teachHref, 'Teach'],
+                    ...(isAuthenticated ? [
+                      ['/my-classes', 'My Classes'],
+                      ...(user?.role === 'admin' ? [['/admin/dashboard', 'Admin dashboard']] : []),
+                      ...(user?.role === 'instructor' ? [['/instructor/dashboard', 'Instructor studio']] : []),
+                      ['/notifications', 'Notifications'],
+                      ['/profile', 'Profile'],
+                      ['/settings', 'Settings'],
+                    ] : [['/login', 'Log In'], ['/signup', 'Sign Up']]),
                     ['/help', 'Help'],
-                  ].map(([to, label]) => <SheetClose asChild key={to}><Link to={to} className="block rounded-xl px-4 py-3 font-medium hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-black">{label}</Link></SheetClose>)}
+                  ].map(([to, label]) => <SheetClose asChild key={`${to}-${label}`}><Link to={to} className="block rounded-xl px-4 py-3 font-medium hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-black">{label}</Link></SheetClose>)}
                   {isAuthenticated && <button type="button" onClick={handleLogout} className="w-full text-left rounded-xl px-4 py-3 font-medium text-red-600 hover:bg-red-50">Log Out</button>}
                 </nav>
               </SheetContent>

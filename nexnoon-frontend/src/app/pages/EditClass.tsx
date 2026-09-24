@@ -1,89 +1,97 @@
 import ClassDetailsEditor from '@/app/components/ClassDetailsEditor';
-import type { ClassDetails, ClassSchedule } from '@/types/api';
-import { classService, getErrorMessage } from '@/lib/api';
+import { TimeZoneSelect } from '@/app/components/TimeZonePicker';
+import { browserTimeZone, isValidTimeZone } from '@/lib/timezone';
+import PriceHint, { priceRangeMessage } from '@/app/components/PriceHint';
+import type { Class, ClassDetails, Course } from '@/types/api';
+import { classService, courseService, getErrorMessage } from '@/lib/api';
 import BackendState from '@/app/components/BackendState';
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Upload, Plus, X, Calendar, Clock, DollarSign, Users, BookOpen, Video, FileText, Trash2, Save } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router';
+import {
+  ArrowLeft, Upload, Plus, X, Calendar, Clock, DollarSign, Users, BookOpen, Video,
+  FileText, Trash2, Save,
+} from 'lucide-react';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBackendData } from '@/hooks/useBackendData';
-import { useUpdateClass, useClassSchedule, useUpdateSession } from '@/hooks/api/useClasses';
+import { useUpdateClass, useClassSchedule } from '@/hooks/api/useClasses';
 
-/** Splits an ISO timestamp into separate local date/time strings for <input> fields. */
-function splitDateTime(iso: string): { date: string; time: string } {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return {
-    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-  };
-}
+const fieldLabel = 'block text-xs uppercase tracking-[0.14em] text-[#6b655c] mb-1.5';
+const fieldControl =
+  'w-full border border-[#e4dfd6] bg-white px-3 py-2.5 text-sm text-[#14110e] outline-none focus:border-[#14110e] disabled:opacity-60 disabled:bg-[#faf8f5]';
 
-const sessionStatusBadge: Record<ClassSchedule['status'], string> = {
-  live: 'bg-red-100 text-red-700',
-  scheduled: 'bg-blue-100 text-blue-700',
-  completed: 'bg-gray-100 text-gray-600',
-  cancelled: 'bg-gray-100 text-gray-400',
-};
-
-/** One session's row in the reschedule list: edits its date/time while keeping its duration. */
-function SessionScheduleRow({ classId, session }: { classId: string; session: ClassSchedule }) {
-  const updateSession = useUpdateSession(classId);
-  const initial = splitDateTime(session.startTime);
-  const [date, setDate] = useState(initial.date);
-  const [time, setTime] = useState(initial.time);
-  const editable = session.status === 'scheduled';
-  const changed = date !== initial.date || time !== initial.time;
-
-  const handleSave = async () => {
-    const newStart = new Date(`${date}T${time}`);
-    if (Number.isNaN(newStart.getTime())) return;
-    const durationMs = new Date(session.endTime).getTime() - new Date(session.startTime).getTime();
-    const newEnd = new Date(newStart.getTime() + durationMs);
-    await updateSession.mutateAsync({
-      sessionId: session.id,
-      data: { startTime: newStart.toISOString(), endTime: newEnd.toISOString() },
-    });
-  };
-
+/** Compact list editor for outcomes / prerequisites / materials. */
+function ArrayEditor({
+  label,
+  hint,
+  icon,
+  required,
+  items,
+  placeholder,
+  onChange,
+  onAdd,
+  onRemove,
+  addLabel,
+  minItems = 0,
+}: {
+  label: string;
+  hint?: string;
+  icon?: React.ReactNode;
+  required?: boolean;
+  items: string[];
+  placeholder: string;
+  onChange: (index: number, value: string) => void;
+  onAdd: () => void;
+  onRemove: (index: number) => void;
+  addLabel: string;
+  minItems?: number;
+}) {
   return (
-    <div className="flex flex-wrap items-center gap-3 border border-gray-200 rounded-lg p-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold text-gray-900 truncate">{session.title}</p>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${sessionStatusBadge[session.status]}`}>
-            {session.status}
-          </span>
-        </div>
+    <div className="space-y-3">
+      <div>
+        <p className={`${fieldLabel} inline-flex items-center gap-1.5`}>
+          {icon}
+          {label}
+          {required && <span className="text-[#c45c26] normal-case tracking-normal">*</span>}
+        </p>
+        {hint && <p className="text-xs text-[#6b655c] -mt-0.5 mb-1">{hint}</p>}
       </div>
-      <Input
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        disabled={!editable}
-        aria-label={`${session.title} date`}
-        className="w-auto border-gray-300 rounded-lg disabled:opacity-50"
-      />
-      <Input
-        type="time"
-        value={time}
-        onChange={(e) => setTime(e.target.value)}
-        disabled={!editable}
-        aria-label={`${session.title} time`}
-        className="w-auto border-gray-300 rounded-lg disabled:opacity-50"
-      />
-      <Button
-        onClick={handleSave}
-        disabled={!editable || !changed || updateSession.isPending}
-        size="sm"
-        className="bg-black text-white hover:bg-gray-800 rounded-lg disabled:opacity-50"
+      <div className="space-y-2">
+        {items.map((item, index) => (
+          <div key={index} className="flex gap-2 items-center">
+            <span className="text-xs tabular-nums text-[#a39c92] w-5 flex-shrink-0 text-right">
+              {index + 1}
+            </span>
+            <Input
+              value={item}
+              onChange={(e) => onChange(index, e.target.value)}
+              placeholder={placeholder}
+              className={fieldControl}
+            />
+            {items.length > minItems && (
+              <button
+                type="button"
+                onClick={() => onRemove(index)}
+                className="p-2 border border-[#e4dfd6] text-[#6b655c] hover:text-red-700 hover:border-red-200 flex-shrink-0"
+                aria-label="Remove"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onAdd}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-[#14110e] border border-[#d5cfc4] bg-white px-3 py-2 hover:border-[#14110e]"
       >
-        {updateSession.isPending ? 'Saving...' : 'Save'}
-      </Button>
+        <Plus className="h-4 w-4" />
+        {addLabel}
+      </button>
     </div>
   );
 }
@@ -92,16 +100,29 @@ export default function EditClass() {
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const adminMode = user?.role === 'admin' || location.pathname.startsWith('/admin');
+  const backHref = adminMode ? `/admin/dashboard?tab=classes&class=${id}` : `/classroom/${id}`;
+  const doneHref = adminMode ? `/admin/dashboard?tab=classes&class=${id}` : '/my-classes';
   const updateClass = useUpdateClass(id || '');
   const { data: sessions } = useClassSchedule(id || '');
   const platformSettings = useBackendData<{ maxClassSeats: number }>('/settings/platform', true);
   const platformSeats = platformSettings.data?.maxClassSeats ?? 25;
   const [currentStep, setCurrentStep] = useState(1);
   const [details, setDetails] = useState<ClassDetails>({});
+  const [classData, setClassData] = useState<Class | null>(null);
+  const [course, setCourse] = useState<Course | undefined>();
+  useEffect(() => {
+    if (!classData?.courseId) return;
+    courseService
+      .getCatalog()
+      .then((list) => setCourse(list.find((c) => c.id === classData.courseId)))
+      .catch(() => setCourse(undefined));
+  }, [classData?.courseId]);
 
   const existingClass = {
     title: '', description: '', category: '', price: '0', duration: '60',
-    language: '', level: 'beginner', startDate: '', startTime: '',
+    language: '', level: 'beginner', startDate: '', startTime: '', timezone: browserTimeZone(),
     sessionFrequency: 'weekly', totalSessions: '1', learningOutcomes: [] as string[],
     prerequisites: [] as string[], materials: [] as string[], thumbnail: '',
   };
@@ -111,12 +132,18 @@ export default function EditClass() {
   useEffect(() => {
     if (!id) { setError('Select a class to edit.'); setLoading(false); return; }
     classService.getClass(id).then(c => {
-      if (c.instructor.id !== user?.id && user?.role !== 'admin') throw new Error('You can only edit your own classes.');
+      const onTeam = c.instructor.id === user?.id
+        || (c.teachingTeam || []).some((m) => String(m.userId) === user?.id && (m.status === 'accepted' || m.status === 'pending'))
+        || user?.role === 'admin';
+      if (!onTeam) throw new Error('You can only edit classes you teach.');
+      setClassData(c);
       setFormData({ ...existingClass, title: c.title, description: c.description,
         category: c.category, price: String(c.price), duration: String(c.duration),
         language: c.language || '',
         level: c.level.toLowerCase(), totalSessions: String(c.totalSessions),
-        startDate: c.startDate?.slice(0,10) || '', learningOutcomes: c.learningOutcomes || [],
+        startDate: c.startDate?.slice(0,10) || '',
+        timezone: isValidTimeZone(c.timezone) ? c.timezone : isValidTimeZone(user?.timezone) ? user!.timezone! : browserTimeZone(),
+        learningOutcomes: c.learningOutcomes || [],
         prerequisites: c.prerequisites || [], materials: c.materials || [], thumbnail: c.thumbnail || '' });
       setThumbnail(c.thumbnail || null);
       setDetails(c.details || {});
@@ -178,6 +205,8 @@ export default function EditClass() {
 
   const handleSave = async () => {
     if (!id) return;
+    const rangeError = priceRangeMessage(course, formData.price);
+    if (rangeError) { setError(rangeError); return; }
     setSaving(true); setError('');
     try {
       await updateClass.mutateAsync({
@@ -188,17 +217,18 @@ export default function EditClass() {
         level: (formData.level.charAt(0).toUpperCase() + formData.level.slice(1)) as 'Beginner' | 'Intermediate' | 'Advanced',
         language: formData.language,
         startDate: formData.startDate ? new Date(formData.startDate).toISOString() : undefined,
+        timezone: formData.timezone,
         learningOutcomes: formData.learningOutcomes.filter(Boolean),
         prerequisites: formData.prerequisites.filter(Boolean), materials: formData.materials.filter(Boolean),
         thumbnail: thumbnail || '',
       });
-      setHasChanges(false); navigate('/my-classes');
+      setHasChanges(false); navigate(doneHref);
     } catch (err) { setError(getErrorMessage(err)); } finally { setSaving(false); }
   };
 
   const handleDelete = async () => {
     if (!id || !confirm('Delete this class? This cannot be undone.')) return;
-    try { await classService.deleteClass(id); navigate('/my-classes'); }
+    try { await classService.deleteClass(id); navigate(adminMode ? '/admin/dashboard?tab=classes' : '/my-classes'); }
     catch (err) { setError(getErrorMessage(err)); }
   };
 
@@ -209,65 +239,78 @@ export default function EditClass() {
   ];
 
   if (loading) return <BackendState title="Edit Class" loading message="Loading Nexnoon" />;
-  if (!formData.title && error) return <BackendState title="Edit Class" message={error} />;
+  if (!formData.title && error) {
+    return (
+      <BackendState
+        title="Edit Class"
+        message={error}
+        {...(adminMode ? { actionLabel: 'Back to admin · Classes', actionTo: backHref } : {})}
+      />
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-white">
-      <Header variant="light" />
+    <div className="min-h-screen bg-[#f6f4f0] text-[#1a1a1a]">
+      {!adminMode && <Header variant="light" />}
       
-      <main className="py-12">
-        {error && <p role="alert" className="text-red-600 w-[90vw] mx-auto">{error}</p>}
-        <div className="w-[90vw] max-w-5xl mx-auto">
+      <main className="py-10 md:py-12">
+        {error && (
+          <p role="alert" className="text-red-600 w-[min(92vw,1000px)] mx-auto mb-4 text-sm border border-red-200 bg-red-50 px-4 py-2.5">
+            {error}
+          </p>
+        )}
+        <div className="w-[min(92vw,1000px)] mx-auto">
           {/* Header */}
           <div className="mb-8">
             <button
-              onClick={() => navigate(-1)}
-              className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+              onClick={() => navigate(backHref)}
+              className="flex items-center text-[#6b655c] hover:text-[#14110e] mb-4 transition-colors text-sm"
             >
-              <ArrowLeft className="h-5 w-5 mr-2" />
-              Back
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {adminMode ? 'Back to admin · Classes' : 'Back to classroom'}
             </button>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Class</h1>
-                <p className="text-gray-600">Update your class details and settings</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[#6b655c] mb-1">
+                  {adminMode ? 'Admin · editing on behalf of the instructor' : 'Lead instructor'}
+                </p>
+                <h1 className="font-serif text-3xl tracking-tight text-[#14110e] mb-2">Edit class</h1>
+                <p className="text-[#6b655c] text-sm max-w-lg">
+                  Update curriculum, schedule, and class materials.
+                </p>
               </div>
               <Button
                 onClick={handleDelete}
                 variant="outline"
-                className="text-red-600 border-red-600 hover:bg-red-50"
+                className="border border-red-300 text-red-700 hover:bg-red-50 rounded-none"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete Class
+                Delete class
               </Button>
             </div>
             {!isAuthenticated && (
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Demo Mode:</strong> You're viewing the class edit form.
-                </p>
+              <div className="mt-4 p-4 bg-white border border-[#e4dfd6] text-sm text-[#3d3933]">
+                <strong>Demo mode:</strong> You&apos;re viewing the class edit form.
               </div>
             )}
             {hasChanges && (
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  <strong>Unsaved Changes:</strong> You have unsaved changes. Don't forget to save!
-                </p>
+              <div className="mt-4 p-4 bg-[#fff8f0] border border-[#eadfcf] text-sm text-[#5c4030]">
+                <strong>Unsaved changes</strong> — don&apos;t forget to save.
               </div>
             )}
           </div>
 
           {/* Tab Navigation */}
-          <div className="mb-8 border-b-2 border-gray-200">
-            <div className="flex gap-8">
+          <div className="mb-6 border-b border-[#ddd6ca]">
+            <div className="flex gap-6 overflow-x-auto">
               {steps.map((step) => (
                 <button
                   key={step.number}
                   onClick={() => setCurrentStep(step.number)}
-                  className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  className={`pb-3 text-sm whitespace-nowrap transition-colors ${
                     currentStep === step.number
-                      ? 'border-black text-black'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-b-2 border-[#14110e] text-[#14110e] font-medium'
+                      : 'text-[#6b655c] hover:text-[#14110e]'
                   }`}
                 >
                   {step.title}
@@ -277,7 +320,7 @@ export default function EditClass() {
           </div>
 
           {/* Form Content */}
-          <div className="bg-white border border-gray-300 rounded-xl p-8 shadow-sm">
+          <div className="bg-white border border-[#e4dfd6] p-6 sm:p-8">
             {/* Step 1: Basic Info */}
             {currentStep === 1 && (
               <div className="space-y-6">
@@ -344,275 +387,225 @@ export default function EditClass() {
 
             {/* Step 2: Details */}
             {currentStep === 2 && (
-              <div className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-black mb-2">
-                      CATEGORY *
+              <div className="space-y-8">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-[#6b655c]">Pricing &amp; level</p>
+                  <h2 className="font-serif text-xl text-[#14110e] mt-1 mb-4">Class details</h2>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <label className="flex flex-col">
+                      <span className={fieldLabel}>Category *</span>
+                      <select
+                        value={formData.category}
+                        onChange={(e) => handleInputChange('category', e.target.value)}
+                        className={fieldControl}
+                      >
+                        <option value="">Select a category</option>
+                        {categories.map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
                     </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => handleInputChange('category', e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-black rounded-none focus:outline-none focus:ring-4 focus:ring-black/10"
-                    >
-                      <option value="">Select a category</option>
-                      {categories.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-black mb-2">
-                      LEVEL *
+                    <label className="flex flex-col">
+                      <span className={fieldLabel}>Level *</span>
+                      <select
+                        value={formData.level}
+                        onChange={(e) => handleInputChange('level', e.target.value)}
+                        className={fieldControl}
+                      >
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                        <option value="all">All Levels</option>
+                      </select>
                     </label>
-                    <select
-                      value={formData.level}
-                      onChange={(e) => handleInputChange('level', e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-black rounded-none focus:outline-none focus:ring-4 focus:ring-black/10"
-                    >
-                      <option value="beginner">Beginner</option>
-                      <option value="intermediate">Intermediate</option>
-                      <option value="advanced">Advanced</option>
-                      <option value="all">All Levels</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-black mb-2 flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      PRICE PER STUDENT (USD) *
+                    <label className="flex flex-col">
+                      <span className={`${fieldLabel} inline-flex items-center gap-1.5`}>
+                        <DollarSign className="h-3.5 w-3.5" /> Price per learner (USD) *
+                      </span>
+                      <Input
+                        type="number"
+                        value={formData.price}
+                        onChange={(e) => handleInputChange('price', e.target.value)}
+                        placeholder="99"
+                        className={fieldControl}
+                      />
+                      <PriceHint course={course} price={formData.price} />
                     </label>
-                    <Input
-                      type="number"
-                      value={formData.price}
-                      onChange={(e) => handleInputChange('price', e.target.value)}
-                      placeholder="99"
-                      className="border-2 border-black rounded-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-black mb-2 flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      MAX STUDENTS
+                    <label className="flex flex-col">
+                      <span className={`${fieldLabel} inline-flex items-center gap-1.5`}>
+                        <Users className="h-3.5 w-3.5" /> Max learners
+                      </span>
+                      <Input
+                        type="number"
+                        value={platformSeats}
+                        disabled
+                        readOnly
+                        className={fieldControl}
+                      />
+                      <span className="text-[11px] text-[#8a847a] mt-1">Set by platform admin for all classes.</span>
                     </label>
-                    <Input
-                      type="number"
-                      value={platformSeats}
-                      disabled
-                      readOnly
-                      className="border-2 border-black rounded-none opacity-70"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Set by platform admin for all classes.</p>
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-black mb-2 flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      START DATE *
+                <div className="border-t border-[#eee9e0] pt-8">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-[#6b655c]">Defaults</p>
+                  <h2 className="font-serif text-xl text-[#14110e] mt-1 mb-1">Session defaults</h2>
+                  <p className="text-sm text-[#6b655c] mb-4">
+                    Used when generating new sessions. Existing sessions below keep their own times.
+                  </p>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <label className="flex flex-col">
+                      <span className={`${fieldLabel} inline-flex items-center gap-1.5`}>
+                        <Calendar className="h-3.5 w-3.5" /> Class start date
+                      </span>
+                      <Input
+                        type="date"
+                        value={formData.startDate}
+                        onChange={(e) => handleInputChange('startDate', e.target.value)}
+                        className={fieldControl}
+                      />
                     </label>
-                    <Input
-                      type="date"
-                      value={formData.startDate}
-                      onChange={(e) => handleInputChange('startDate', e.target.value)}
-                      className="border-2 border-black rounded-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-black mb-2 flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      START TIME *
+                    <label className="flex flex-col">
+                      <span className={`${fieldLabel} inline-flex items-center gap-1.5`}>
+                        <Clock className="h-3.5 w-3.5" /> Default start time
+                      </span>
+                      <Input
+                        type="time"
+                        value={formData.startTime}
+                        onChange={(e) => handleInputChange('startTime', e.target.value)}
+                        className={fieldControl}
+                      />
                     </label>
-                    <Input
-                      type="time"
-                      value={formData.startTime}
-                      onChange={(e) => handleInputChange('startTime', e.target.value)}
-                      className="border-2 border-black rounded-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-black mb-2 flex items-center gap-2">
-                      <Video className="h-4 w-4" />
-                      SESSION DURATION *
+                    <label className="flex flex-col">
+                      <span className={`${fieldLabel} inline-flex items-center gap-1.5`}>
+                        <Video className="h-3.5 w-3.5" /> Default duration
+                      </span>
+                      <select
+                        value={formData.duration}
+                        onChange={(e) => handleInputChange('duration', e.target.value)}
+                        className={fieldControl}
+                      >
+                        <option value="">Select</option>
+                        <option value="30">30 minutes</option>
+                        <option value="60">1 hour</option>
+                        <option value="90">1.5 hours</option>
+                        <option value="120">2 hours</option>
+                        <option value="180">3 hours</option>
+                      </select>
                     </label>
-                    <select
-                      value={formData.duration}
-                      onChange={(e) => handleInputChange('duration', e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-black rounded-none focus:outline-none focus:ring-4 focus:ring-black/10"
-                    >
-                      <option value="">Select</option>
-                      <option value="30">30 minutes</option>
-                      <option value="60">1 hour</option>
-                      <option value="90">1.5 hours</option>
-                      <option value="120">2 hours</option>
-                      <option value="180">3 hours</option>
-                    </select>
+                    <label className="flex flex-col">
+                      <span className={fieldLabel}>Session frequency</span>
+                      <select
+                        value={formData.sessionFrequency}
+                        onChange={(e) => handleInputChange('sessionFrequency', e.target.value)}
+                        className={fieldControl}
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Bi-weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </label>
+                    <label className="flex flex-col">
+                      <span className={fieldLabel}>Planned total sessions</span>
+                      <Input
+                        type="number"
+                        value={formData.totalSessions}
+                        onChange={(e) => handleInputChange('totalSessions', e.target.value)}
+                        placeholder="10"
+                        className={fieldControl}
+                      />
+                    </label>
+                    <label className="flex flex-col md:col-span-3">
+                      <span className={fieldLabel}>Class time zone</span>
+                      <TimeZoneSelect
+                        value={formData.timezone}
+                        onChange={(tz) => handleInputChange('timezone', tz)}
+                        className={fieldControl}
+                      />
+                      <span className="mt-1.5 text-xs text-[#6b655c]">
+                        You schedule sessions in this zone; learners see each session in their own local time. Changing it keeps existing sessions at the same moment.
+                      </span>
+                    </label>
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-black mb-2">
-                      SESSION FREQUENCY *
-                    </label>
-                    <select
-                      value={formData.sessionFrequency}
-                      onChange={(e) => handleInputChange('sessionFrequency', e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-black rounded-none focus:outline-none focus:ring-4 focus:ring-black/10"
-                    >
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="biweekly">Bi-weekly</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-black mb-2">
-                      TOTAL SESSIONS *
-                    </label>
-                    <Input
-                      type="number"
-                      value={formData.totalSessions}
-                      onChange={(e) => handleInputChange('totalSessions', e.target.value)}
-                      placeholder="10"
-                      className="border-2 border-black rounded-none"
-                    />
-                  </div>
+                <div className="border-t border-[#eee9e0] pt-8">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-[#6b655c]">Live sessions</p>
+                  <h2 className="font-serif text-xl text-[#14110e] mt-1 mb-1">Scheduled under modules</h2>
+                  <p className="text-sm text-[#6b655c] max-w-2xl leading-relaxed">
+                    Open the <button type="button" onClick={() => setCurrentStep(3)} className="underline underline-offset-2 text-[#14110e] font-medium">Content</button> tab,
+                    expand a module, and add live Zoom sessions there — zero, one, or many per module.
+                    {sessions?.length ? (
+                      <span className="block mt-2 text-[#14110e]">
+                        {sessions.length} live session{sessions.length === 1 ? '' : 's'} on this class so far.
+                      </span>
+                    ) : null}
+                  </p>
                 </div>
-
-                {!!sessions?.length && (
-                  <div className="pt-6 border-t border-gray-200">
-                    <label className="block text-sm font-bold text-black mb-1">
-                      SESSION SCHEDULE
-                    </label>
-                    <p className="text-sm text-gray-500 mb-4">
-                      Reschedule an upcoming session. Its duration stays the same; only the start date and time change.
-                    </p>
-                    <div className="space-y-3">
-                      {sessions.map((s) => (
-                        <SessionScheduleRow key={s.id} classId={id!} session={s} />
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
             {/* Step 3: Content */}
             {currentStep === 3 && (
               <div className="space-y-8">
-                <ClassDetailsEditor value={details} onChange={value => { setDetails(value); setHasChanges(true); }} />
-                <div>
-                  <label className="block text-sm font-bold text-black mb-4 flex items-center gap-2">
-                    <BookOpen className="h-5 w-5" />
-                    WHAT WILL STUDENTS LEARN? *
-                  </label>
-                  {formData.learningOutcomes.map((outcome, index) => (
-                    <div key={index} className="flex gap-2 mb-3">
-                      <Input
-                        value={outcome}
-                        onChange={(e) => handleArrayChange('learningOutcomes', index, e.target.value)}
-                        placeholder="e.g., Master advanced React patterns like HOCs and Render Props"
-                        className="border-2 border-black rounded-none"
-                      />
-                      {formData.learningOutcomes.length > 1 && (
-                        <button
-                          onClick={() => handleArrayRemove('learningOutcomes', index)}
-                          className="p-2 bg-black text-white hover:bg-gray-800 border-2 border-black transition-colors"
-                        >
-                          <X className="h-5 w-5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <Button
-                    onClick={() => handleArrayAdd('learningOutcomes')}
-                    className="w-full mt-2 bg-white text-black border-2 border-black rounded-none hover:bg-black hover:text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Learning Outcome
-                  </Button>
-                </div>
+                <ClassDetailsEditor
+                  value={details}
+                  onChange={(value) => { setDetails(value); setHasChanges(true); }}
+                  classId={id}
+                  classData={classData}
+                  onClassUpdated={setClassData}
+                  sessions={sessions || []}
+                  defaultDurationMinutes={Number(formData.duration) || 60}
+                  timeZone={formData.timezone}
+                />
+                <div className="border-t border-[#eee9e0] pt-8 space-y-8">
+                  <ArrayEditor
+                    label="What will students learn?"
+                    required
+                    icon={<BookOpen className="h-3.5 w-3.5" />}
+                    hint="Shown as checkmarks on the public class page."
+                    items={formData.learningOutcomes}
+                    placeholder="e.g., Practice clear greetings and introductions"
+                    onChange={(index, value) => handleArrayChange('learningOutcomes', index, value)}
+                    onAdd={() => handleArrayAdd('learningOutcomes')}
+                    onRemove={(index) => handleArrayRemove('learningOutcomes', index)}
+                    addLabel="Add learning outcome"
+                    minItems={1}
+                  />
 
-                <div>
-                  <label className="block text-sm font-bold text-black mb-4">
-                    PREREQUISITES (OPTIONAL)
-                  </label>
-                  {formData.prerequisites.map((prereq, index) => (
-                    <div key={index} className="flex gap-2 mb-3">
-                      <Input
-                        value={prereq}
-                        onChange={(e) => handleArrayChange('prerequisites', index, e.target.value)}
-                        placeholder="e.g., Basic understanding of JavaScript and React"
-                        className="border-2 border-black rounded-none"
-                      />
-                      {formData.prerequisites.length > 1 && (
-                        <button
-                          onClick={() => handleArrayRemove('prerequisites', index)}
-                          className="p-2 bg-black text-white hover:bg-gray-800 border-2 border-black transition-colors"
-                        >
-                          <X className="h-5 w-5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <Button
-                    onClick={() => handleArrayAdd('prerequisites')}
-                    className="w-full mt-2 bg-white text-black border-2 border-black rounded-none hover:bg-black hover:text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Prerequisite
-                  </Button>
-                </div>
+                  <ArrayEditor
+                    label="Prerequisites"
+                    hint="Optional. What learners should know before joining."
+                    items={formData.prerequisites}
+                    placeholder="e.g., No previous experience required"
+                    onChange={(index, value) => handleArrayChange('prerequisites', index, value)}
+                    onAdd={() => handleArrayAdd('prerequisites')}
+                    onRemove={(index) => handleArrayRemove('prerequisites', index)}
+                    addLabel="Add prerequisite"
+                  />
 
-                <div>
-                  <label className="block text-sm font-bold text-black mb-4 flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    REQUIRED MATERIALS (OPTIONAL)
-                  </label>
-                  {formData.materials.map((material, index) => (
-                    <div key={index} className="flex gap-2 mb-3">
-                      <Input
-                        value={material}
-                        onChange={(e) => handleArrayChange('materials', index, e.target.value)}
-                        placeholder="e.g., Laptop with VS Code installed"
-                        className="border-2 border-black rounded-none"
-                      />
-                      {formData.materials.length > 1 && (
-                        <button
-                          onClick={() => handleArrayRemove('materials', index)}
-                          className="p-2 bg-black text-white hover:bg-gray-800 border-2 border-black transition-colors"
-                        >
-                          <X className="h-5 w-5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <Button
-                    onClick={() => handleArrayAdd('materials')}
-                    className="w-full mt-2 bg-white text-black border-2 border-black rounded-none hover:bg-black hover:text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Material
-                  </Button>
+                  <ArrayEditor
+                    label="Required materials"
+                    icon={<FileText className="h-3.5 w-3.5" />}
+                    hint="Optional. Tools or prep learners need."
+                    items={formData.materials}
+                    placeholder="e.g., Notebook or document for exercises"
+                    onChange={(index, value) => handleArrayChange('materials', index, value)}
+                    onAdd={() => handleArrayAdd('materials')}
+                    onRemove={(index) => handleArrayRemove('materials', index)}
+                    addLabel="Add material"
+                  />
                 </div>
               </div>
             )}
 
             {/* Save Button */}
-            <div className="flex items-center justify-between mt-8 pt-8 border-t-2 border-black">
+            <div className="flex items-center justify-between mt-8 pt-6 border-t border-[#eee9e0]">
               <Button
-                onClick={() => navigate('/my-classes')}
+                onClick={() => navigate(backHref)}
                 variant="outline"
-                className="border-2 border-black rounded-none"
+                className="border border-[#d5cfc4] rounded-none"
               >
                 Cancel
               </Button>
@@ -620,17 +613,17 @@ export default function EditClass() {
               <Button
                 onClick={handleSave}
                 disabled={!hasChanges || saving}
-                className="bg-black text-white hover:bg-gray-800 rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[#c45c26] text-white hover:bg-[#a84c1e] rounded-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="h-4 w-4 mr-2" />
-                Save Changes
+                {saving ? 'Saving…' : 'Save changes'}
               </Button>
             </div>
           </div>
         </div>
       </main>
       
-      <Footer />
+      {!adminMode && <Footer />}
     </div>
   );
 }

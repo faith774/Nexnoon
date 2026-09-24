@@ -22,6 +22,17 @@ export const authService = {
   },
 
   /**
+   * Admin portal login (admin accounts only)
+   */
+  async adminLogin(credentials: LoginRequest): Promise<AuthResponse> {
+    const response = await apiClient.post<APIResponse<AuthResponse>>(
+      '/auth/admin/login',
+      credentials
+    );
+    return response.data.data;
+  },
+
+  /**
    * Register new user
    */
   async signup(data: SignupRequest): Promise<AuthResponse> {
@@ -69,6 +80,16 @@ export const authService = {
    */
   async confirmPasswordReset(data: PasswordResetConfirm): Promise<void> {
     await apiClient.post('/auth/password/reset/confirm', data);
+  },
+
+  /**
+   * Change password while authenticated (requires current password)
+   */
+  async changePassword(data: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<void> {
+    await apiClient.post('/auth/password/change', data);
   },
 
   /**

@@ -1,11 +1,11 @@
 import { authService, getErrorMessage } from '@/lib/api';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, KeyRound, Mail } from 'lucide-react';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
-import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
+import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 
 export default function ForgotPassword() {
   const [error, setError] = useState('');
@@ -13,142 +13,201 @@ export default function ForgotPassword() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
     setError('');
-    try { await authService.requestPasswordReset({ email }); setIsSubmitted(true); }
-    catch (err) { setError(getErrorMessage(err)); }
-    finally { setIsLoading(false); }
-
+    try {
+      await authService.requestPasswordReset({ email });
+      setIsSubmitted(true);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="min-h-screen flex flex-col bg-[#f7f5f1] text-[#14110e]">
       <Header variant="light" />
-      
-      <main className="py-12">
-        <div className="w-[90vw] max-w-md mx-auto">
-          {error && <p role="alert" className="text-red-600 mb-4">{error}</p>}
-          <Link
-            to="/login"
-            className="flex items-center text-gray-600 hover:text-black mb-8 transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Back to Login
-          </Link>
 
-          <div className="bg-white border border-gray-300 rounded-2xl shadow-lg p-8">
-            {!isSubmitted ? (
-              <>
-                {/* Header */}
-                <div className="text-center mb-8">
-                  <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Mail className="h-8 w-8 text-white" />
+      <main className="flex-1">
+        <div className="grid lg:grid-cols-2 min-h-[calc(100vh-8rem)]">
+          {/* Atmosphere panel */}
+          <aside className="relative hidden lg:block overflow-hidden">
+            <ImageWithFallback
+              src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=1400&q=80"
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#14110e]/88 via-[#14110e]/72 to-[#14110e]/55" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(136,157,209,0.28),transparent_55%)]" />
+            <div className="relative z-10 flex h-full flex-col justify-between p-10 xl:p-14">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">
+                Nexnoon Account
+              </p>
+              <div>
+                <h2 className="font-serif text-4xl xl:text-5xl tracking-tight text-white leading-[1.08] max-w-md">
+                  Reset access in a few quiet steps.
+                </h2>
+                <p className="mt-4 max-w-sm text-white/65 leading-relaxed">
+                  Enter the email on your account and we’ll send a secure link so you can set a new
+                  password and get back to class.
+                </p>
+              </div>
+              <p className="text-sm text-white/40">Secure · Expires in 1 hour · One-time use</p>
+            </div>
+          </aside>
+
+          {/* Form panel */}
+          <section className="flex flex-col justify-center px-6 py-12 sm:px-10 lg:px-14 xl:px-20">
+            <div className="mx-auto w-full max-w-md">
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 text-sm font-medium text-[#7a746a] transition-colors hover:text-[#14110e]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to sign in
+              </Link>
+
+              {!isSubmitted ? (
+                <>
+                  <div className="mt-8 mb-8">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#14110e] text-white mb-5">
+                      <KeyRound className="h-5 w-5" />
+                    </span>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a847a] mb-2">
+                      Password reset
+                    </p>
+                    <h1 className="font-serif text-3xl sm:text-4xl tracking-tight leading-tight">
+                      Forgot your password?
+                    </h1>
+                    <p className="mt-3 text-[#7a746a] leading-relaxed">
+                      Enter your email and we’ll send reset instructions. No worries if it takes a
+                      moment to arrive.
+                    </p>
                   </div>
-                  <h1 className="text-2xl font-bold text-black mb-2">
-                    Forgot Password?
-                  </h1>
-                  <p className="text-gray-600">
-                    No worries! Enter your email and we'll send you reset instructions.
-                  </p>
-                </div>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-bold text-black mb-2">
-                      EMAIL ADDRESS
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    <label className="block">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a847a]">
+                        Email address
+                      </span>
+                      <div className="relative mt-2">
+                        <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a948a]" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          required
+                          autoComplete="email"
+                          className="w-full rounded-2xl border border-[#e0dbd2] bg-white py-3.5 pl-11 pr-4 text-[15px] text-[#14110e] outline-none transition placeholder:text-[#b0a99e] focus:border-[#14110e]/35 focus:ring-2 focus:ring-[#14110e]/10"
+                        />
+                      </div>
                     </label>
-                    <Input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="your.email@example.com"
-                      className="rounded-lg border-gray-300"
-                      required
-                    />
-                  </div>
 
-                  <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-black text-white hover:bg-gray-800 rounded-lg py-6"
-                  >
-                    {isLoading ? 'Sending...' : 'Send Reset Instructions'}
-                  </Button>
+                    {error ? (
+                      <p
+                        role="alert"
+                        className="rounded-2xl border border-[#f0c4c0] bg-[#fef7f6] px-4 py-3 text-sm text-[#b42318]"
+                      >
+                        {error}
+                      </p>
+                    ) : null}
 
-                  <div className="text-center text-sm text-gray-600">
+                    <Button
+                      type="submit"
+                      disabled={isLoading || !email.trim()}
+                      className="h-12 w-full rounded-2xl bg-[#14110e] text-[15px] font-semibold text-white hover:bg-[#2a2520] disabled:opacity-40"
+                    >
+                      {isLoading ? 'Sending…' : 'Send reset instructions'}
+                    </Button>
+                  </form>
+
+                  <p className="mt-6 text-center text-sm text-[#7a746a]">
                     Remember your password?{' '}
-                    <Link to="/login" className="text-black font-bold hover:underline">
+                    <Link to="/login" className="font-semibold text-[#14110e] hover:underline">
                       Sign in
                     </Link>
-                  </div>
-                </form>
-              </>
-            ) : (
-              <>
-                {/* Success State */}
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  </div>
-                  <h1 className="text-2xl font-bold text-black mb-2">
-                    Check Your Email
-                  </h1>
-                  <p className="text-gray-600 mb-6">
-                    We've sent password reset instructions to
-                    <br />
-                    <span className="font-bold text-black">{email}</span>
                   </p>
-
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 text-left">
-                    <h3 className="font-bold text-sm text-black mb-2">What to do next:</h3>
-                    <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
-                      <li>Check your email inbox</li>
-                      <li>Click the reset link (valid for 1 hour)</li>
-                      <li>Create a new password</li>
-                      <li>Sign in with your new password</li>
-                    </ol>
+                </>
+              ) : (
+                <>
+                  <div className="mt-8 mb-8">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef6ef] text-[#2f6b3a] mb-5">
+                      <CheckCircle2 className="h-6 w-6" />
+                    </span>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a847a] mb-2">
+                      Email sent
+                    </p>
+                    <h1 className="font-serif text-3xl sm:text-4xl tracking-tight leading-tight">
+                      Check your inbox
+                    </h1>
+                    <p className="mt-3 text-[#7a746a] leading-relaxed">
+                      We sent password reset instructions to{' '}
+                      <span className="font-semibold text-[#14110e]">{email}</span>.
+                    </p>
                   </div>
 
-                  <Button
-                    onClick={() => {
-                      setIsSubmitted(false);
-                      setEmail('');
-                    }}
-                    variant="outline"
-                    className="w-full border-gray-300 rounded-lg mb-3"
-                  >
-                    Try Another Email
-                  </Button>
+                  <ol className="space-y-3 rounded-[1.5rem] border border-[#ebe6de] bg-white p-5">
+                    {[
+                      'Open the email from Nexnoon',
+                      'Click the reset link (valid for 1 hour)',
+                      'Choose a new password',
+                      'Sign in and continue learning',
+                    ].map((step, i) => (
+                      <li key={step} className="flex items-start gap-3 text-sm text-[#6b655c]">
+                        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f0ebe3] text-[11px] font-semibold text-[#14110e]">
+                          {i + 1}
+                        </span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
 
-                  <Link to="/login">
-                    <Button className="w-full bg-black text-white hover:bg-gray-800 rounded-lg">
-                      Back to Login
-                    </Button>
-                  </Link>
-                </div>
-              </>
-            )}
-          </div>
+                  <div className="mt-6 space-y-3">
+                    <Link to="/login" className="block">
+                      <Button className="h-12 w-full rounded-2xl bg-[#14110e] text-[15px] font-semibold text-white hover:bg-[#2a2520]">
+                        Back to sign in
+                      </Button>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSubmitted(false);
+                        setEmail('');
+                        setError('');
+                      }}
+                      className="w-full py-2 text-sm font-medium text-[#7a746a] hover:text-[#14110e]"
+                    >
+                      Use a different email
+                    </button>
+                  </div>
+                </>
+              )}
 
-          {/* Help Section */}
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
-            <h3 className="font-bold text-black mb-2">Didn't receive the email?</h3>
-            <ul className="text-sm text-gray-700 space-y-1 mb-4">
-              <li>• Check your spam/junk folder</li>
-              <li>• Make sure you entered the correct email</li>
-              <li>• Wait a few minutes and try again</li>
-            </ul>
-            <Link to="/contact" className="text-sm font-bold text-black hover:underline">
-              Contact support →
-            </Link>
-          </div>
+              {/* Help */}
+              <div className="mt-10 rounded-[1.5rem] border border-[#ebe6de] bg-white/70 p-5">
+                <h3 className="text-sm font-semibold tracking-tight">Didn’t get the email?</h3>
+                <ul className="mt-3 space-y-1.5 text-sm text-[#7a746a]">
+                  <li>Check spam or promotions folders</li>
+                  <li>Confirm the email matches your Nexnoon account</li>
+                  <li>Wait a couple of minutes, then try again</li>
+                </ul>
+                <Link
+                  to="/contact"
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#14110e] hover:text-[#3a5f8a]"
+                >
+                  Contact support
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

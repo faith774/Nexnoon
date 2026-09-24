@@ -1,4 +1,5 @@
 import BrandLoader from '../components/BrandLoader';
+import { formatInZone, getViewerTimeZone } from '@/lib/timezone';
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { CheckCircle, Calendar, Clock, ArrowRight, Download } from 'lucide-react';
@@ -37,7 +38,7 @@ export default function EnrollmentSuccess() {
 
   const classData = apiClass ? { title: apiClass.title,
     duration: `${apiClass.totalSessions} sessions`,
-    nextSession: apiClass.schedule?.[0]?.startTime ? new Date(apiClass.schedule[0].startTime).toLocaleString() : 'Not scheduled yet',
+    nextSession: apiClass.schedule?.[0]?.startTime ? formatInZone(apiClass.schedule[0].startTime, getViewerTimeZone(), 'datetime', true) : 'Not scheduled yet',
   } : null;
 
   useEffect(() => {

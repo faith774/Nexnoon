@@ -47,13 +47,17 @@ export const requireApprovedInstructor = async (req: AuthRequest, res: Response,
     return res.status(401).json({ success: false, message: 'Account not found' });
   }
   if (user.instructorStatus !== 'approved') {
+    const status = user.instructorStatus || 'none';
+    const message =
+      status === 'pending'
+        ? 'Your instructor application is still under review'
+        : status === 'suspended'
+          ? 'Your instructor account is suspended. Contact support.'
+          : 'Your instructor application was not approved';
     return res.status(403).json({
       success: false,
-      message:
-        user.instructorStatus === 'pending'
-          ? 'Your instructor application is still under review'
-          : 'Your instructor application was not approved',
-      data: { instructorStatus: user.instructorStatus || 'none' },
+      message,
+      data: { instructorStatus: status },
     });
   }
   return next();

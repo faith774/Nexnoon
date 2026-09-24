@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { ENV } from '@/config/env';
+import { isAdminPortalHost } from '@/lib/portal';
 import type { APIError, APIResponse, AssignmentAnswer } from '@/types/api';
 
 // Create axios instance
@@ -68,7 +69,11 @@ apiClient.interceptors.response.use(
         // Refresh failed - logout user
         localStorage.removeItem('authToken');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login?session=expired';
+        const onAdminPortal =
+          isAdminPortalHost() || window.location.pathname.startsWith('/admin');
+        window.location.href = onAdminPortal
+          ? '/admin/login?session=expired'
+          : '/login?session=expired';
         return Promise.reject(refreshError);
       }
     }
@@ -184,6 +189,15 @@ export const getErrorMessage = (error: unknown): string => {
   }
   
   return 'An unexpected error occurred';
+};
+
+/** Machine-readable error code from an API error response (e.g. ADMIN_PORTAL_REQUIRED). */
+export const getErrorCode = (error: unknown): string | undefined => {
+  if (axios.isAxiosError(error)) {
+    const code = (error.response?.data as { code?: unknown } | undefined)?.code;
+    return typeof code === 'string' ? code : undefined;
+  }
+  return undefined;
 };
 
 export default apiClient;

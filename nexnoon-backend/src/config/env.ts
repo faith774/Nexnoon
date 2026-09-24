@@ -29,6 +29,9 @@ export const ENV = {
   // Frontend URL for links in emails
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
 
+  // Admin portal origin (e.g. https://admin.nexnoon.com). Allowed by CORS alongside FRONTEND_URL.
+  ADMIN_URL: process.env.ADMIN_URL || '',
+
   // Zoom Server-to-Server OAuth (optional - for automatic meeting creation)
   ZOOM_ACCOUNT_ID: process.env.ZOOM_ACCOUNT_ID || '',
   ZOOM_CLIENT_ID: process.env.ZOOM_CLIENT_ID || '',
@@ -44,6 +47,24 @@ export const ENV = {
   // Live class join-window policy (see src/config/liveClassPolicy.ts)
   LIVE_CLASS_JOIN_EARLY_MINUTES: Number(process.env.LIVE_CLASS_JOIN_EARLY_MINUTES) || 15,
   LIVE_CLASS_LATE_JOIN_GRACE_MINUTES: Number(process.env.LIVE_CLASS_LATE_JOIN_GRACE_MINUTES) || 30,
+  // How early the teaching team may open the room and mark a session live.
+  LIVE_CLASS_HOST_EARLY_MINUTES: Number(process.env.LIVE_CLASS_HOST_EARLY_MINUTES) || 60,
+  /** Minutes before a session when reminder emails go out; 0 means "starting now". */
+  SESSION_REMINDER_MINUTES: [
+    ...new Set(
+      (process.env.SESSION_REMINDER_MINUTES || '30,20,10,5,0')
+        .split(',')
+        .map((v) => Math.round(Number(v.trim())))
+        .filter((n) => Number.isFinite(n) && n >= 0 && n <= 180)
+    ),
+  ].sort((a, b) => b - a),
+
+  // Zoom meeting defaults: waiting room (hosts admit each learner) and automatic recording (none | cloud | local).
+  ZOOM_WAITING_ROOM: process.env.ZOOM_WAITING_ROOM === 'true',
+  ZOOM_AUTO_RECORDING: (['cloud', 'local'].includes(process.env.ZOOM_AUTO_RECORDING || '') ? process.env.ZOOM_AUTO_RECORDING : 'none') as
+    | 'none'
+    | 'cloud'
+    | 'local',
 
   // Cloudinary (optional - instructor material/assignment file uploads are disabled without it)
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',

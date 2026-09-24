@@ -14,6 +14,9 @@
     "test": "npm run build && node --test tests/local-api.test.cjs tests/zoom-lifecycle.test.cjs",
     "seed:demo": "npm run build && node scripts/seed-demo.cjs",
     "seed:catalog": "npm run seed:demo && node scripts/seed-catalog.cjs",
+    "seed:courses": "npm run build && node scripts/seed-courses.cjs",
+    "check:integrations": "node scripts/check-integrations.cjs",
+    "smoke:e2e": "node scripts/smoke-e2e.cjs",
     "demo:atlas": "node scripts/import-demo-atlas.cjs"
   },
   "dependencies": {

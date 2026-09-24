@@ -22,12 +22,16 @@ export const ENV = {
   ENABLE_DEMO_MODE: false,
   ENABLE_ANALYTICS: import.meta.env.VITE_ENABLE_ANALYTICS === 'true',
   
+  // Admin portal origin, e.g. https://admin.nexnoon.com. When set, the public site
+  // sends /admin traffic there; when empty, the admin portal lives at /admin on this origin.
+  ADMIN_PORTAL_URL: (import.meta.env.VITE_ADMIN_PORTAL_URL || '').replace(/\/+$/, ''),
+  // Public site origin, used by the admin portal to link back to the learner site.
+  PUBLIC_SITE_URL: (import.meta.env.VITE_PUBLIC_SITE_URL || '').replace(/\/+$/, ''),
+
   // Stripe (publishable key only - safe for frontend)
   STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
 
   // Zoom Configuration (for live classes)
-  ZOOM_SDK_KEY: import.meta.env.VITE_ZOOM_SDK_KEY || '',
-  ZOOM_SDK_SECRET: import.meta.env.VITE_ZOOM_SDK_SECRET || '',
 } as const;
 
 // Check if running in development

@@ -1,44 +1,46 @@
 export function CertificatePreview({
-  title = "Course title",
-  instructor = "Nexnoon Expert",
-  information = "The instructor has not provided certificate information yet.",
+  title = 'Course title',
+  instructor = 'Nexnoon Expert',
+  information = 'The instructor has not provided certificate information yet.',
 }: {
   title?: string;
   instructor?: string;
   information?: string;
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+    <div className="border border-[#e4dfd6] bg-white overflow-hidden">
       <div className="grid lg:grid-cols-2">
-        <div className="p-6 sm:p-7 border-b lg:border-b-0 lg:border-r border-gray-100">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">Certificate</p>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2 tracking-tight">Earn your certificate</h2>
-          <p className="text-sm text-gray-600 leading-relaxed mb-4">{information}</p>
-          <p className="text-xs text-gray-500 leading-relaxed">
-            Preview only. Availability and requirements are set by the instructor.
+        <div className="p-6 sm:p-8 border-b lg:border-b-0 lg:border-r border-[#eee9e0]">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-[#6b655c] mb-2">Certificate</p>
+          <h2 className="font-serif text-xl text-[#14110e] mb-2 tracking-tight">Earn your certificate</h2>
+          <p className="text-sm text-[#3d3933] leading-relaxed mb-4">{information}</p>
+          <p className="text-xs text-[#8a847a] leading-relaxed">
+            Issued by the lead instructor when the learner completes the class requirements.
           </p>
         </div>
 
-        <div className="p-6 sm:p-7 bg-gray-50 flex items-center justify-center">
-          <div className="w-full max-w-sm bg-white rounded-lg border border-gray-200 p-5 text-center shadow-sm">
-            <div className="border-b border-gray-100 pb-3 mb-3">
-              <div className="mx-auto mb-2 h-9 w-9 rounded-full bg-gray-900 text-white text-sm font-semibold flex items-center justify-center">
+        <div className="p-6 sm:p-8 bg-[#faf8f5] flex items-center justify-center">
+          <div className="w-full max-w-sm bg-white border border-[#e4dfd6] p-6 text-center shadow-[0_12px_40px_rgba(20,17,14,0.06)]">
+            <div className="border-b border-[#eee9e0] pb-4 mb-4">
+              <div className="mx-auto mb-2 h-10 w-10 bg-[#14110e] text-white text-sm font-semibold flex items-center justify-center">
                 N
               </div>
-              <p className="text-sm font-semibold text-gray-900">Nexnoon</p>
-              <p className="text-[10px] uppercase tracking-wider text-gray-400 mt-0.5">Certificate of Completion</p>
+              <p className="font-serif text-lg text-[#14110e]">Nexnoon</p>
+              <p className="text-[10px] uppercase tracking-[0.16em] text-[#8a847a] mt-1">
+                Certificate of Completion
+              </p>
             </div>
-            <p className="text-[11px] text-gray-500">This certifies that</p>
-            <p className="text-base font-semibold text-gray-900 mt-1 mb-1">Your Name</p>
-            <p className="text-[11px] text-gray-500 mb-1">has completed</p>
-            <p className="text-sm font-medium text-gray-800 leading-snug">{title}</p>
-            <div className="mt-4 pt-3 border-t border-gray-100 flex items-end justify-between text-left">
+            <p className="text-[11px] text-[#6b655c]">This certifies that</p>
+            <p className="font-serif text-lg text-[#14110e] mt-1 mb-1">Your Name</p>
+            <p className="text-[11px] text-[#6b655c] mb-1">has completed</p>
+            <p className="text-sm font-medium text-[#3d3933] leading-snug">{title}</p>
+            <div className="mt-5 pt-4 border-t border-[#eee9e0] flex items-end justify-between text-left">
               <div>
-                <div className="w-16 h-px bg-gray-900 mb-1" />
-                <p className="text-[11px] text-gray-700">{instructor}</p>
-                <p className="text-[10px] text-gray-400">Instructor</p>
+                <div className="w-16 h-px bg-[#14110e] mb-1" />
+                <p className="text-[11px] text-[#3d3933]">{instructor}</p>
+                <p className="text-[10px] text-[#8a847a]">Lead instructor</p>
               </div>
-              <p className="text-[10px] text-gray-400 uppercase tracking-wider">Preview</p>
+              <p className="text-[10px] text-[#8a847a] uppercase tracking-wider">Preview</p>
             </div>
           </div>
         </div>

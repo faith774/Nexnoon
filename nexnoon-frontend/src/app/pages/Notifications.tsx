@@ -1,7 +1,17 @@
 import BrandLoader from '@/app/components/BrandLoader';
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
-import { Bell, CheckCheck, Trash2, Settings, Users, Video, Award, DollarSign, MessageSquare, Calendar } from 'lucide-react';
+import { useState, useEffect, type MouseEvent } from 'react';
+import { Link, useNavigate } from 'react-router';
+import {
+  Award,
+  Bell,
+  Calendar,
+  CheckCheck,
+  DollarSign,
+  MessageSquare,
+  Settings2,
+  Trash2,
+  Video,
+} from 'lucide-react';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import { Button } from '@/app/components/ui/button';
@@ -34,9 +44,45 @@ function formatTimeAgo(createdAt: string): string {
   return d.toLocaleDateString();
 }
 
+function typeMeta(type: NotificationType) {
+  switch (type) {
+    case 'class':
+      return {
+        icon: Video,
+        label: 'Class',
+        tone: 'bg-[#eef2f8] text-[#3a5f8a]',
+      };
+    case 'payment':
+      return {
+        icon: DollarSign,
+        label: 'Billing',
+        tone: 'bg-[#eef6ef] text-[#2f6b3a]',
+      };
+    case 'achievement':
+      return {
+        icon: Award,
+        label: 'Achievement',
+        tone: 'bg-[#f5f0e6] text-[#8a6a2f]',
+      };
+    case 'message':
+      return {
+        icon: MessageSquare,
+        label: 'Message',
+        tone: 'bg-[#f0ebe3] text-[#5c564e]',
+      };
+    case 'system':
+    default:
+      return {
+        icon: Bell,
+        label: 'System',
+        tone: 'bg-[#f0ebe3] text-[#5c564e]',
+      };
+  }
+}
+
 export default function Notifications() {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [notifications, setNotifications] = useState<NotificationUI[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,48 +114,12 @@ export default function Notifications() {
       .finally(() => setLoading(false));
   }, [useRealData]);
 
-  const getIcon = (type: NotificationType) => {
-    switch (type) {
-      case 'class':
-        return <Video className="h-5 w-5" />;
-      case 'payment':
-        return <DollarSign className="h-5 w-5" />;
-      case 'achievement':
-        return <Award className="h-5 w-5" />;
-      case 'message':
-        return <MessageSquare className="h-5 w-5" />;
-      case 'system':
-        return <Bell className="h-5 w-5" />;
-      default:
-        return <Bell className="h-5 w-5" />;
-    }
-  };
-
-  const getIconColor = (type: NotificationType) => {
-    switch (type) {
-      case 'class':
-        return 'bg-blue-100 text-blue-600';
-      case 'payment':
-        return 'bg-green-100 text-green-600';
-      case 'achievement':
-        return 'bg-yellow-100 text-yellow-600';
-      case 'message':
-        return 'bg-purple-100 text-purple-600';
-      case 'system':
-        return 'bg-gray-100 text-gray-600';
-      default:
-        return 'bg-gray-100 text-gray-600';
-    }
-  };
-
   const markAsRead = (id: string | number) => {
     if (useRealData && typeof id === 'string') {
       notificationService.markAsRead(id).catch(() => {});
     }
     setNotifications((prev) =>
-      prev.map((notif) =>
-        notif.id === id ? { ...notif, read: true } : notif
-      )
+      prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif))
     );
   };
 
@@ -117,12 +127,10 @@ export default function Notifications() {
     if (useRealData) {
       notificationService.markAllAsRead().catch(() => {});
     }
-    setNotifications((prev) =>
-      prev.map((notif) => ({ ...notif, read: true }))
-    );
+    setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
   };
 
-  const deleteNotification = (id: string | number, e: React.MouseEvent) => {
+  const deleteNotification = (id: string | number, e: MouseEvent) => {
     e.stopPropagation();
     if (useRealData && typeof id === 'string') {
       notificationService.deleteNotification(id).catch(() => {});
@@ -144,172 +152,241 @@ export default function Notifications() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f7f5f1] text-[#14110e]">
       <Header variant="light" />
-      
-      <main className="py-12">
-        <div className="w-[90vw] max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            {!useRealData && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-                Sign in to see your notifications.
-              </div>
-            )}
-            <div className="flex items-center justify-between mb-4">
+
+      <main className="pb-16">
+        {/* Page intro */}
+        <section className="border-b border-[#ebe6de] bg-gradient-to-b from-white to-[#f7f5f1]">
+          <div className="w-[90vw] max-w-3xl mx-auto pt-10 md:pt-14 pb-8">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a847a] mb-3">
+              Inbox
+            </p>
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-black mb-2">Notifications</h1>
-                <p className="text-gray-600">
-                  {loading ? 'Loading...' : unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
+                <h1 className="font-serif text-4xl md:text-[2.75rem] tracking-tight leading-none">
+                  Notifications
+                </h1>
+                <p className="mt-3 text-[#7a746a]">
+                  {loading
+                    ? 'Loading your updates…'
+                    : unreadCount > 0
+                      ? `${unreadCount} unread · class, billing, and account updates`
+                      : 'You’re all caught up'}
                 </p>
               </div>
-              
-              <div className="flex items-center gap-3">
-                {unreadCount > 0 && (
+
+              <div className="flex flex-wrap items-center gap-2">
+                {unreadCount > 0 ? (
                   <Button
+                    type="button"
                     onClick={markAllAsRead}
                     variant="outline"
-                    className="border-gray-300 rounded-lg"
+                    className="h-10 rounded-full border-[#e0dbd2] bg-white px-4 text-[#14110e] hover:bg-[#f0ebe3]"
                   >
                     <CheckCheck className="h-4 w-4 mr-2" />
-                    Mark all as read
+                    Mark all read
                   </Button>
-                )}
+                ) : null}
                 <Button
+                  type="button"
                   onClick={() => navigate('/settings')}
-                  variant="outline"
-                  className="border-gray-300 rounded-lg"
+                  className="h-10 rounded-full bg-[#14110e] px-4 text-white hover:bg-[#2a2520]"
                 >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Settings
+                  <Settings2 className="h-4 w-4 mr-2" />
+                  Preferences
                 </Button>
               </div>
             </div>
 
-            {/* Filters */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filter === 'all'
-                    ? 'bg-black text-white'
-                    : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                All ({notifications.length})
-              </button>
-              <button
-                onClick={() => setFilter('unread')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  filter === 'unread'
-                    ? 'bg-black text-white'
-                    : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Unread ({unreadCount})
-              </button>
-            </div>
-          </div>
-
-          {/* Notifications List */}
-          <div className="space-y-3">
-            {loading ? (
-              <div className="bg-white border border-gray-300 rounded-xl p-12 text-center text-gray-600">
-                <BrandLoader />
-              </div>
-            ) : filteredNotifications.length === 0 ? (
-              <div className="bg-white border border-gray-300 rounded-xl p-12 text-center">
-                <Bell className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-black mb-2">
-                  {filter === 'unread' ? 'No unread notifications' : 'No notifications'}
-                </h3>
-                <p className="text-gray-600">
-                  {filter === 'unread'
-                    ? 'All caught up! You\'re all set.'
-                    : 'You\'ll be notified about class updates, messages, and more.'}
+            {!useRealData ? (
+              <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-[#ebe6de] bg-white px-5 py-4">
+                <p className="text-sm text-[#6b655c]">
+                  Sign in to see class reminders, enrollments, and messages in one place.
                 </p>
-              </div>
-            ) : (
-              filteredNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={`bg-white border rounded-xl p-4 transition-all group ${
-                    notification.read
-                      ? 'border-gray-300 hover:border-gray-400'
-                      : 'border-blue-200 bg-blue-50/30 hover:border-blue-300'
-                  } ${notification.actionUrl ? 'cursor-pointer' : ''}`}
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center rounded-full bg-[#14110e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2a2520]"
                 >
-                  <div className="flex items-start gap-4">
-                    {/* Icon */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${getIconColor(notification.type)}`}>
-                      {getIcon(notification.type)}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3 mb-1">
-                        <h3 className={`font-bold ${notification.read ? 'text-black' : 'text-blue-900'}`}>
-                          {notification.title}
-                        </h3>
-                        {!notification.read && (
-                          <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1.5"></div>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">{notification.message}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{notification.time}</span>
-                        <button
-                          onClick={(e) => deleteNotification(notification.id, e)}
-                          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 rounded transition-all"
-                        >
-                          <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-600" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Info Cards */}
-          {filteredNotifications.length > 0 && (
-            <div className="mt-12 grid md:grid-cols-3 gap-6">
-              <div className="bg-white border border-gray-300 rounded-xl p-6 text-center">
-                <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Calendar className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-bold text-black mb-2">Never Miss a Class</h3>
-                <p className="text-sm text-gray-600">
-                  Get notified before your live sessions start
-                </p>
+                  Sign in
+                </Link>
               </div>
+            ) : null}
 
-              <div className="bg-white border border-gray-300 rounded-xl p-6 text-center">
-                <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center mx-auto mb-3">
-                  <MessageSquare className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-bold text-black mb-2">Stay Connected</h3>
-                <p className="text-sm text-gray-600">
-                  Instant updates from your Nexnoon Experts
-                </p>
-              </div>
-
-              <div className="bg-white border border-gray-300 rounded-xl p-6 text-center">
-                <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Settings className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-bold text-black mb-2">Customize Alerts</h3>
-                <p className="text-sm text-gray-600">
-                  Control what notifications you receive
-                </p>
-              </div>
+            <div
+              className="mt-6 inline-flex rounded-full border border-[#ebe6de] bg-white p-1"
+              role="tablist"
+              aria-label="Notification filters"
+            >
+              {(
+                [
+                  ['all', `All · ${notifications.length}`],
+                  ['unread', `Unread · ${unreadCount}`],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === value}
+                  onClick={() => setFilter(value)}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                    filter === value
+                      ? 'bg-[#14110e] text-white'
+                      : 'text-[#6b655c] hover:text-[#14110e]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+          </div>
+        </section>
+
+        <div className="w-[90vw] max-w-3xl mx-auto pt-8">
+          {loading ? (
+            <div className="rounded-[1.75rem] border border-[#ebe6de] bg-white py-16">
+              <BrandLoader />
+            </div>
+          ) : filteredNotifications.length === 0 ? (
+            <div className="rounded-[1.75rem] border border-[#ebe6de] bg-white px-8 py-16 text-center">
+              <span className="mx-auto mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f0ebe3] text-[#6b655c]">
+                <Bell className="h-6 w-6" />
+              </span>
+              <h2 className="font-serif text-2xl tracking-tight">
+                {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+              </h2>
+              <p className="mt-2 mx-auto max-w-sm text-sm text-[#7a746a] leading-relaxed">
+                {filter === 'unread'
+                  ? 'Everything is clear. New class and account updates will show up here.'
+                  : 'When you enroll, get messages, or have a session starting soon, you’ll see it here.'}
+              </p>
+              {filter === 'unread' && notifications.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setFilter('all')}
+                  className="mt-6 text-sm font-semibold text-[#3a5f8a] hover:underline"
+                >
+                  View all notifications
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <ul className="overflow-hidden rounded-[1.75rem] border border-[#ebe6de] bg-white divide-y divide-[#ebe6de]">
+              {filteredNotifications.map((notification) => {
+                const meta = typeMeta(notification.type);
+                const Icon = meta.icon;
+                return (
+                  <li key={notification.id}>
+                    <div
+                      role={notification.actionUrl ? 'link' : undefined}
+                      tabIndex={notification.actionUrl ? 0 : undefined}
+                      onClick={() => handleNotificationClick(notification)}
+                      onKeyDown={(e) => {
+                        if (
+                          notification.actionUrl &&
+                          (e.key === 'Enter' || e.key === ' ')
+                        ) {
+                          e.preventDefault();
+                          handleNotificationClick(notification);
+                        }
+                      }}
+                      className={`group relative flex items-start gap-4 px-5 py-4 sm:px-6 sm:py-5 transition-colors ${
+                        notification.actionUrl ? 'cursor-pointer' : ''
+                      } ${
+                        notification.read
+                          ? 'bg-white hover:bg-[#faf9f6]'
+                          : 'bg-[#f7f5f1] hover:bg-[#f3f0ea]'
+                      }`}
+                    >
+                      {!notification.read ? (
+                        <span
+                          className="absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-[#889dd1]"
+                          aria-hidden
+                        />
+                      ) : null}
+
+                      <span
+                        className={`mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${meta.tone}`}
+                      >
+                        <Icon className="h-[18px] w-[18px]" />
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3
+                                className={`text-[15px] tracking-tight ${
+                                  notification.read
+                                    ? 'font-semibold text-[#14110e]'
+                                    : 'font-bold text-[#14110e]'
+                                }`}
+                              >
+                                {notification.title}
+                              </h3>
+                              <span className="rounded-full bg-[#f0ebe3] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#6b655c]">
+                                {meta.label}
+                              </span>
+                            </div>
+                            <p className="mt-1.5 text-sm leading-relaxed text-[#6b655c]">
+                              {notification.message}
+                            </p>
+                            <p className="mt-2 text-xs text-[#9a948a]">{notification.time}</p>
+                          </div>
+
+                          <div className="flex shrink-0 items-center gap-1">
+                            {!notification.read ? (
+                              <span
+                                className="mr-1 h-2 w-2 rounded-full bg-[#889dd1]"
+                                title="Unread"
+                              />
+                            ) : null}
+                            <button
+                              type="button"
+                              aria-label="Delete notification"
+                              onClick={(e) => deleteNotification(notification.id, e)}
+                              className="rounded-xl p-2 text-[#c4bdb2] opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-[#f0ebe3] hover:text-[#b42318]"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
+
+          {/* Tips strip — not a card grid */}
+          <div className="mt-10 grid gap-6 border-t border-[#ebe6de] pt-10 sm:grid-cols-3">
+            <div>
+              <Calendar className="h-5 w-5 text-[#889dd1] mb-3" />
+              <h3 className="text-sm font-semibold tracking-tight">Never miss a class</h3>
+              <p className="mt-1 text-sm text-[#7a746a] leading-relaxed">
+                Session reminders arrive here before live class starts.
+              </p>
+            </div>
+            <div>
+              <MessageSquare className="h-5 w-5 text-[#889dd1] mb-3" />
+              <h3 className="text-sm font-semibold tracking-tight">Stay in the loop</h3>
+              <p className="mt-1 text-sm text-[#7a746a] leading-relaxed">
+                Enrollment, assignments, and instructor updates land in one inbox.
+              </p>
+            </div>
+            <div>
+              <Settings2 className="h-5 w-5 text-[#889dd1] mb-3" />
+              <h3 className="text-sm font-semibold tracking-tight">Tune your alerts</h3>
+              <p className="mt-1 text-sm text-[#7a746a] leading-relaxed">
+                Choose what you hear about in notification preferences.
+              </p>
+            </div>
+          </div>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );

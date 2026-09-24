@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { classService } from '@/lib/api';
 import { ENV } from '@/config/env';
-import { classDetailUrl } from '@/lib/url';
 import { 
   Code, 
   Palette, 
@@ -12,14 +11,13 @@ import {
   Music,
   Heart,
   Globe,
-  Filter,
   SlidersHorizontal,
   ArrowLeft,
   BookOpen,
-  MapPin
 } from 'lucide-react';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import ClassBrowseCard from '@/app/components/ClassBrowseCard';
 import { Button } from '@/app/components/ui/button';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 
@@ -343,63 +341,23 @@ export default function CategoryDetail() {
               </div>
             )}
 
-            {/* Classes Grid - Matching Homepage Style */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 max-w-[1328px] mx-auto justify-items-center">
+            {/* Classes Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 max-w-[1328px] mx-auto justify-items-center">
               {filteredClasses.map((classItem) => (
-                <div
-                  key={classItem.id}
-                  onClick={() => navigate(classDetailUrl(String(classItem.id), classItem.title))}
-                  className="group rounded-2xl overflow-hidden cursor-pointer w-full min-w-0 max-w-[320px]"
-                >
-                  {/* Image */}
-                  <div className="relative h-56 overflow-hidden bg-gray-100 rounded-2xl">
-                    <ImageWithFallback
-                      src={classItem.thumbnail}
-                      alt={classItem.title}
-                      className="w-full h-full object-cover"
-                    />
-
-                    {/* Live Class badge + wishlist — aligned row */}
-                    <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between">
-                      <span className="px-2.5 py-1.5 rounded-full bg-white/40 text-gray-800 text-[11px] font-semibold tracking-wide backdrop-blur-sm">
-                        Live Class
-                      </span>
-                      <button 
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-2 rounded-full bg-white/40 backdrop-blur-sm hover:bg-white/60 transition-colors"
-                      >
-                        <Heart className="h-5 w-5 text-gray-700 hover:text-red-500 hover:fill-red-500 transition-colors" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-[10px] px-[0px] py-[5px]">
-                    <h3 className="font-semibold text-base text-gray-900 mb-1 line-clamp-1">
-                      {classItem.title}
-                    </h3>
-
-                    <div className="flex items-center justify-between gap-2 text-sm text-gray-600 m-[0px] -mt-1 mx-[0px] my-[5px]">
-                      <div className="flex items-center min-w-0 -ml-0.5">
-                        <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-                        <span className="text-[12px] truncate">Online, Live</span>
-                      </div>
-                      <span className="text-[12px] text-gray-500 flex-shrink-0">
-                        {classItem.duration || '4 weeks'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xl font-semibold text-gray-900 text-[15px]">€{classItem.price.toFixed(2)}</p>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Heart className="h-4 w-4 mr-1" />
-                        <span>(0)</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <ClassBrowseCard
+                  key={String(classItem.id)}
+                  data={{
+                    id: String(classItem.id),
+                    title: classItem.title,
+                    instructor: classItem.instructor,
+                    price: classItem.price,
+                    currency: 'USD',
+                    image: classItem.thumbnail,
+                    duration: classItem.duration === 'N/A' ? '' : classItem.duration,
+                    level: classItem.level,
+                    enrolledStudents: classItem.students,
+                  }}
+                />
               ))}
             </div>
           </div>

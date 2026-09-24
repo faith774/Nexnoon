@@ -247,4 +247,40 @@ export const classService = {
     );
     return response.data.data;
   },
+
+  /** Lead instructor invites a support instructor by email. */
+  async inviteInstructor(classId: string, email: string): Promise<Class> {
+    const response = await apiClient.post<APIResponse<Class>>(
+      `/classes/${classId}/instructors/invite`,
+      { email }
+    );
+    return response.data.data;
+  },
+
+  /** Support instructor accepts or declines a teaching invite. */
+  async respondToInvite(classId: string, status: 'accepted' | 'declined'): Promise<Class> {
+    const response = await apiClient.post<APIResponse<Class>>(
+      `/classes/${classId}/instructors/respond`,
+      { status }
+    );
+    return response.data.data;
+  },
+
+  /** Lead instructor removes a support member from the teaching team. */
+  async removeSupport(classId: string, userId: string): Promise<Class> {
+    const response = await apiClient.post<APIResponse<Class>>(
+      `/classes/${classId}/instructors/remove`,
+      { userId }
+    );
+    return response.data.data;
+  },
+
+  /** Create Zoom meeting for a session that is missing credentials. */
+  async ensureZoomMeeting(classId: string, sessionId: string): Promise<ClassSchedule> {
+    const response = await apiClient.post<APIResponse<ClassSchedule>>(
+      `/classes/${classId}/schedule/${sessionId}/ensure-zoom`,
+      {}
+    );
+    return response.data.data;
+  },
 };

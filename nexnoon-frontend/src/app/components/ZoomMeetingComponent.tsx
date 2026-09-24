@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { AlertCircle, CheckCircle2, Clock, Maximize2, Minimize2, Video } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, ExternalLink, Maximize2, Minimize2, Video } from 'lucide-react';
+import { formatInZone, tzLabel, useViewerTimeZone } from '@/lib/timezone';
 import { apiClient } from '@/lib/api';
 import type { ClassSchedule } from '@/types/api';
 import type ZoomMtgEmbeddedDefault from '@zoom/meetingsdk/embedded';
@@ -19,7 +20,12 @@ interface ZoomMeetingComponentProps {
   isHost?: boolean;
   /** Called after the host successfully starts the session, so the caller can refetch and pick up the new 'live' status. */
   onSessionStarted?: () => void;
+  /** Backend join-window policy (minutes learners may join before the start). */
+  joinEarlyMinutes?: number;
 }
+
+/** Non-embedded ways into the room: the instructor's own link, or Zoom's app/web client. */
+type ExternalRoom = { url: string; provider: 'external' | 'zoom_link'; passcode?: string };
 
 type EmbeddedZoomClient = ReturnType<typeof ZoomMtgEmbeddedDefault.createClient>;
 
@@ -28,9 +34,9 @@ type JoinState = 'waiting' | 'loading' | 'ready' | 'error';
 // 'waiting-for-host' = the join window is open and credentials were issued, but
 // Zoom itself reports the meeting hasn't been started by the host yet - a normal,
 // expected state (waiting_room + join_before_host:false), not a failure.
-type ErrorReason = 'too-early' | 'waiting-for-host' | 'not-enrolled' | 'unauthenticated' | 'cancelled' | 'missing-meeting' | 'sdk-config' | 'init-failed' | 'network' | 'meeting-ended' | 'meeting-locked';
+type ErrorReason = 'too-early' | 'waiting-for-host' | 'not-enrolled' | 'unauthenticated' | 'cancelled' | 'window-closed' | 'missing-meeting' | 'sdk-config' | 'init-failed' | 'network' | 'meeting-ended' | 'meeting-locked';
 
-export default function ZoomMeetingComponent({ classId, session, userName, instructorName, isEnrolled, thumbnail, isHost, onSessionStarted }: ZoomMeetingComponentProps) {
+export default function ZoomMeetingComponent({ classId, session, userName, isEnrolled, thumbnail, isHost, onSessionStarted, joinEarlyMinutes = 15 }: ZoomMeetingComponentProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<EmbeddedZoomClient | null>(null);
@@ -40,6 +46,12 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
   const [countdown, setCountdown] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hostAccessState, setHostAccessState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [hostNote, setHostNote] = useState('');
+  const [externalRoom, setExternalRoom] = useState<ExternalRoom | null>(null);
+  /** Zoom join URL kept as a fallback when the embedded client can't start. */
+  const [fallbackUrl, setFallbackUrl] = useState('');
+  const [viewerTz] = useViewerTimeZone();
+  const earlyMs = joinEarlyMinutes * 60 * 1000;
 
   // Keeps join eligibility in sync with the session's real lifecycle status
   // (polled from the backend - see BackendClassroom's refetchInterval) as well
@@ -88,9 +100,8 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
       const now = Date.now();
       const startTime = new Date(session.startTime).getTime();
       const timeUntilStart = startTime - now;
-      const fifteenMinutes = 15 * 60 * 1000;
 
-      if (timeUntilStart > fifteenMinutes) {
+      if (timeUntilStart > earlyMs) {
         const hours = Math.floor(timeUntilStart / (1000 * 60 * 60));
         const minutes = Math.floor((timeUntilStart % (1000 * 60 * 60)) / (1000 * 60));
         setCountdown(`Starts in ${hours}h ${minutes}m`);
@@ -103,8 +114,8 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
       }
 
       setError(prev => {
-        if (prev === 'too-early' && timeUntilStart <= fifteenMinutes) return null;
-        if (prev === null && timeUntilStart > fifteenMinutes && state === 'waiting') return 'too-early';
+        if (prev === 'too-early' && timeUntilStart <= earlyMs) return null;
+        if (prev === null && timeUntilStart > earlyMs && state === 'waiting') return 'too-early';
         return prev;
       });
     };
@@ -112,7 +123,15 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
     evaluate();
     const timer = setInterval(evaluate, 1000);
     return () => clearInterval(timer);
-  }, [session.startTime, session.status, state]);
+  }, [session.startTime, session.status, state, earlyMs]);
+
+  // Waiting on the host: retry quietly so learners get in as soon as the meeting starts.
+  useEffect(() => {
+    if (error !== 'waiting-for-host' || state !== 'waiting') return;
+    const t = setTimeout(() => void handleJoinMeeting(), 20_000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error, state]);
 
   // Leave the meeting and free the SDK's media resources if the student navigates
   // away (e.g. back to My Classes) while still connected.
@@ -159,34 +178,53 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
 
   const handleStartAsHost = async () => {
     setHostAccessState('loading');
+    setHostNote('');
+    // Open the tab inside the click so popup blockers allow it, then point it at the host link once we have it.
+    const tab = window.open('about:blank', '_blank');
     try {
       const response = await apiClient.post(`/classes/${classId}/sessions/${session.id}/host-access`, {});
       const startUrl = response.data?.data?.startUrl;
       if (!startUrl) {
+        tab?.close();
         setHostAccessState('error');
         return;
       }
-      window.open(startUrl, '_blank', 'noopener,noreferrer');
+      if (tab) {
+        tab.opener = null;
+        tab.location.href = startUrl;
+      } else {
+        window.open(startUrl, '_blank', 'noopener,noreferrer');
+      }
       setHostAccessState('idle');
 
-      // Flips the session to 'live' in the backend right away (and notifies
-      // enrolled students) instead of waiting on Zoom's meeting.started webhook,
-      // which is async and never fires at all without real Zoom credentials
-      // configured. A failure here shouldn't block the host, who already has
-      // their start link - it just means students' join gates open a bit late,
-      // once the webhook (if any) or the next status poll catches up.
-      apiClient.post(`/classes/${classId}/schedule/${session.id}/start`, {})
+      // Flip the session live right away (and notify learners) rather than waiting on Zoom's webhook.
+      apiClient
+        .post(`/classes/${classId}/schedule/${session.id}/start`, {})
         .then(() => onSessionStarted?.())
-        .catch((err) => console.error('Failed to mark session live:', err));
+        .catch((err) =>
+          setHostNote(
+            err?.response?.data?.message
+              ? `${err.response.data.message} The room is open for you to set up; learners can join once the session goes live.`
+              : 'The room is open, but the session couldn’t be marked live yet. Learners can still join from the scheduled time.'
+          )
+        );
     } catch (err) {
+      tab?.close();
       console.error('Failed to get host start link:', err);
       setHostAccessState('error');
     }
   };
 
+  const confirmJoined = () => {
+    if (isHost) return;
+    apiClient.post(`/classes/${classId}/sessions/${session.id}/joined`, {}).catch(() => {});
+  };
+
   const handleJoinMeeting = async () => {
     setState('loading');
     setError(null);
+    setExternalRoom(null);
+    setFallbackUrl('');
 
     try {
       // Request credentials from backend (apiClient attaches the auth token and
@@ -219,7 +257,14 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
         return;
       }
 
-      const { signature, meetingNumber, passWord, userName: displayName, userEmail } = response.data.data;
+      const { provider, joinUrl, signature, meetingNumber, passWord, userName: displayName, userEmail, customerKey } = response.data.data;
+
+      if (provider === 'external' || provider === 'zoom_link') {
+        setExternalRoom({ url: joinUrl, provider, passcode: passWord });
+        setState('waiting');
+        return;
+      }
+      if (joinUrl) setFallbackUrl(joinUrl);
 
       if (!containerRef.current || !wrapperRef.current) {
         setError('init-failed');
@@ -273,9 +318,11 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
           password: passWord,
           userName: displayName || userName,
           userEmail: userEmail || '',
+          ...(customerKey ? { customerKey } : {}),
         });
 
         setState('ready');
+        confirmJoined();
       } catch (sdkError: any) {
         console.error('Zoom SDK error:', sdkError?.type, sdkError?.reason, sdkError);
         const reason = typeof sdkError?.reason === 'string' ? sdkError.reason.toLowerCase() : '';
@@ -301,13 +348,16 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
       if (err.response?.status === 401) {
         setError('unauthenticated');
       } else if (err.response?.status === 409) {
+        const code = err.response.data?.code as string | undefined;
         const message = err.response.data?.message || '';
-        if (message.includes('not started')) {
+        if (code === 'too_early' || message.includes('not started')) {
           setError('too-early');
           setState('waiting');
           return;
-        } else if (message.includes('cancelled') || message.includes('completed') || message.includes('already ended') || message.includes('join window')) {
+        } else if (code === 'cancelled' || message.includes('cancelled')) {
           setError('cancelled');
+        } else if (code === 'ended' || code === 'completed' || message.includes('join window') || message.includes('already ended')) {
+          setError('window-closed');
         } else {
           setError('missing-meeting');
         }
@@ -325,13 +375,14 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
   };
 
   const errorMessages: Record<ErrorReason, string> = {
-    'too-early': `This session starts at ${new Date(session.startTime).toLocaleString()}. You can join up to 15 minutes early.`,
-    'waiting-for-host': "Your instructor hasn't started the class yet. You'll be let in automatically as soon as they do.",
+    'too-early': `This session starts ${formatInZone(session.startTime, viewerTz, 'dayTime')} (${tzLabel(viewerTz, session.startTime)}). You can join up to ${joinEarlyMinutes} minutes early.`,
+    'waiting-for-host': "Your instructor hasn't started the class yet. We'll keep trying and let you in as soon as they do.",
     'not-enrolled': 'You are not enrolled in this class. Please enroll first to join the live session.',
     'unauthenticated': 'Your session has expired. Please sign in again to join this class.',
-    'cancelled': `This session has been ${session.status}. Unable to join.`,
-    'missing-meeting': 'The instructor has not set up a meeting for this session yet.',
-    'sdk-config': 'Zoom is not configured. Please contact support.',
+    'cancelled': 'This session was cancelled.',
+    'window-closed': 'The join window for this session has closed.',
+    'missing-meeting': 'The meeting room for this session isn’t ready yet. Check back closer to the start time.',
+    'sdk-config': 'Live video isn’t available right now. Please try again shortly or contact support.',
     'init-failed': 'Failed to initialize Zoom. Please check your connection and try again.',
     'network': 'Network error. Please check your connection and try again.',
     'meeting-ended': 'This meeting has ended.',
@@ -373,7 +424,7 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
               {error === 'too-early' && (
                 <>
                   {countdown && <p className="text-3xl font-mono font-bold text-white mb-2" role="status" aria-live="polite">{countdown}</p>}
-                  <p className="text-white/60 text-sm max-w-sm">You can join up to 15 minutes before this session starts.</p>
+                  <p className="text-white/60 text-sm max-w-sm">You can join up to {joinEarlyMinutes} minutes before this session starts.</p>
                 </>
               )}
 
@@ -390,7 +441,28 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
                 </>
               )}
 
-              {!error && (
+              {!error && externalRoom && (
+                <>
+                  <p className="text-white font-semibold mb-1">Your class room is ready</p>
+                  <p className="text-white/60 text-sm max-w-sm mb-4">
+                    {externalRoom.provider === 'external'
+                      ? 'Your instructor is teaching this session in their own meeting room. It opens in a new tab.'
+                      : 'This session opens in Zoom (app or browser) in a new tab.'}
+                  </p>
+                  <a
+                    href={externalRoom.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={confirmJoined}
+                    className="inline-flex items-center gap-2 bg-[#889dd1] hover:bg-[#7086c4] text-white px-8 py-3 rounded-full font-semibold shadow-lg transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4" aria-hidden="true" /> Open meeting
+                  </a>
+                  {externalRoom.passcode ? <p className="text-white/50 text-xs mt-3">Passcode: <span className="font-mono text-white/80">{externalRoom.passcode}</span></p> : null}
+                </>
+              )}
+
+              {!error && !externalRoom && (
                 <>
                   {isEnrolled && (
                     <p className="flex items-center gap-1.5 text-xs text-emerald-400 mb-4">
@@ -419,7 +491,12 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
                   {hostAccessState === 'error' && (
                     <p className="text-red-300 text-xs mt-2">Couldn&apos;t get your host link. Please try again.</p>
                   )}
-                  <p className="text-white/35 text-xs mt-2">Opens Zoom in a new tab so you can start and control the meeting. Students can&apos;t join until you do.</p>
+                  {hostNote ? <p className="text-amber-200 text-xs mt-2">{hostNote}</p> : null}
+                  <p className="text-white/35 text-xs mt-2">
+                    {session.meetingProvider === 'external'
+                      ? 'Opens your meeting link in a new tab and marks the session live so learners can join.'
+                      : 'Opens Zoom in a new tab so you can start and control the meeting. Learners can join once you start.'}
+                  </p>
                 </div>
               )}
 
@@ -463,6 +540,17 @@ export default function ZoomMeetingComponent({ classId, session, userName, instr
             </div>
             <p className="text-white font-bold text-lg mb-1">Unable to Join</p>
             <p className="text-white/60 text-sm max-w-sm mb-4">{errorMessages[error]}</p>
+            {fallbackUrl && (error === 'init-failed' || error === 'network') ? (
+              <a
+                href={fallbackUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={confirmJoined}
+                className="mb-4 inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-2.5 rounded-full font-semibold hover:bg-gray-100"
+              >
+                <ExternalLink className="h-4 w-4" aria-hidden="true" /> Open in Zoom instead
+              </a>
+            ) : null}
             <button
               onClick={() => {
                 setState('waiting');

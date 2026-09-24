@@ -1,5 +1,5 @@
-import BackendDashboard from '@/app/components/BackendDashboard';
+import InstructorStudio from '@/app/components/studio/InstructorStudio';
 
 export default function Earnings() {
-  return <BackendDashboard view="earnings" />;
+  return <InstructorStudio defaultTab="earnings" />;
 }

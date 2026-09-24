@@ -2,6 +2,9 @@ import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
 import { ENV } from '../config/env';
 import { PaymentModel } from '../models/Payment';
+import { User } from '../models/User';
+import { syncEarnings } from '../utils/earnings';
+import { connectSnapshot } from '../utils/stripe';
 
 const router = Router();
 
@@ -80,8 +83,16 @@ router.post('/', async (req: Request, res: Response) => {
         }
         break;
       }
+      case 'account.updated': {
+        const account = event.data.object as Stripe.Account;
+        await User.updateOne({ 'payout.stripeAccountId': account.id }, { $set: { payout: connectSnapshot(account) } });
+        break;
+      }
       default:
         break;
+    }
+    if (event.type === 'payment_intent.succeeded' || event.type === 'charge.refunded') {
+      syncEarnings().catch((e) => console.error('Earnings sync failed:', e));
     }
   } catch (err) {
     console.error('Stripe webhook handler error:', err);

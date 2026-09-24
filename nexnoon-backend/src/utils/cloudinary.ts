@@ -54,6 +54,10 @@ export async function uploadClassFile(
       {
         resource_type: resourceTypeFor(mimetype),
         folder,
+        // Free Cloudinary plans block PDF/ZIP delivery unless Security →
+        // "Allow delivery of PDF and ZIP files" is enabled. access_mode public
+        // keeps assets downloadable once that setting is on.
+        access_mode: 'public',
         // Keeps the delivered URL's filename recognizable (e.g. "lecture-notes_ab12cd.pdf")
         // instead of a fully random public_id - `unique_filename` still appends a short
         // suffix so two uploads with the same original name never collide.
