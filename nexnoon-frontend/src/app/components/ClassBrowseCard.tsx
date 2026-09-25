@@ -38,11 +38,9 @@ function formatPrice(price: number, currency = 'USD') {
  */
 export default function ClassBrowseCard({
   data,
-  showBorderHover = false,
   fullWidth = false,
 }: {
   data: ClassBrowseCardData;
-  showBorderHover?: boolean;
   fullWidth?: boolean;
 }) {
   const navigate = useNavigate();
@@ -58,8 +56,6 @@ export default function ClassBrowseCard({
   const starts = data.startDate && !Number.isNaN(new Date(data.startDate).getTime()) ? data.startDate : '';
   const eyebrow = [data.category, data.level].filter(Boolean).join(' · ');
   const meta = [data.instructor, starts ? t.day(starts) : '', duration].filter(Boolean);
-  const hover = showBorderHover ? 'group-hover:text-[#889dd1]' : 'group-hover:text-[#c45c26]';
-
   return (
     <div
       role={safeId ? 'link' : undefined}
@@ -102,7 +98,7 @@ export default function ClassBrowseCard({
         {eyebrow ? (
           <p className="truncate text-[10px] font-medium uppercase tracking-[0.16em] text-[#8a847a]">{eyebrow}</p>
         ) : null}
-        <h3 className={`mt-1 line-clamp-2 font-serif text-[16px] leading-snug tracking-tight text-[#14110e] transition-colors ${hover}`}>
+        <h3 className={`mt-1 line-clamp-2 font-serif text-[16px] leading-snug tracking-tight text-[#14110e]`}>
           {data.title}
         </h3>
         {meta.length > 0 ? (

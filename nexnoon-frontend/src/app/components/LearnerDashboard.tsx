@@ -4,7 +4,7 @@ import { Hourglass, RefreshCw, Search } from 'lucide-react';
 import Header from './Header';
 import Footer from './Footer';
 import { ViewerTimeZoneSwitcher } from './TimeZonePicker';
-import { btn, SegmentedTabs, StatTile } from './studio/ui';
+import { btn, card, SegmentedTabs, StatTile } from './learner/ui';
 import { useBackendData } from '@/hooks/useBackendData';
 import { useTimeFormat } from '@/lib/timezone';
 import Overview, { NextUpCard } from './learner/Overview';
@@ -38,14 +38,14 @@ function summaryLine(data: LearnerData) {
 function DashboardSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Loading your dashboard">
-      <Skeleton className="h-44 w-full" />
+      <Skeleton className="h-44 w-full rounded-3xl" />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20" />)}
+        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
       </div>
-      <Skeleton className="h-8 w-2/3" />
+      <Skeleton className="h-8 w-2/3 rounded-full" />
       <div className="grid gap-4 md:grid-cols-2">
-        <Skeleton className="h-56" />
-        <Skeleton className="h-56" />
+        <Skeleton className="h-56 rounded-2xl" />
+        <Skeleton className="h-56 rounded-2xl" />
       </div>
     </div>
   );
@@ -99,7 +99,7 @@ export default function LearnerDashboard() {
   return (
     <div className="min-h-screen bg-[#f6f4f0] text-[#14110e]">
       <Header variant="light" />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-20 pt-8 sm:px-6">
+      <main className="mx-auto w-[90vw] pb-20 pt-8">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-[#8a847a]">My learning</p>
@@ -109,8 +109,8 @@ export default function LearnerDashboard() {
             <p className="mt-1.5 text-sm text-[#6b655c]">{data ? summaryLine(data) : 'Loading your classes…'}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <ViewerTimeZoneSwitcher />
-            <button type="button" onClick={refresh} className="flex h-9 w-9 items-center justify-center border border-[#d5cfc4] bg-white text-[#6b655c] hover:text-[#14110e]" aria-label="Refresh">
+            <ViewerTimeZoneSwitcher className="rounded-full" />
+            <button type="button" onClick={refresh} className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d5cfc4] bg-white text-[#6b655c] transition-colors hover:border-[#14110e]/40 hover:text-[#14110e]" aria-label="Refresh">
               <RefreshCw className={`h-4 w-4 ${query.isFetching ? 'animate-spin' : ''}`} />
             </button>
             <Link to="/browse" className={btn.primary}><Search className="h-4 w-4" /> Browse classes</Link>
@@ -120,7 +120,7 @@ export default function LearnerDashboard() {
         {query.isLoading ? (
           <DashboardSkeleton />
         ) : query.isError || !data ? (
-          <section className="border border-[#e4dfd6] bg-white p-8 text-center">
+          <section className={`${card} p-8 text-center`}>
             <h2 className="font-serif text-xl">We couldn't load your dashboard</h2>
             <p className="mt-1 text-sm text-[#6b655c]">Check your connection and try again.</p>
             <button type="button" onClick={refresh} className={`${btn.primary} mt-5`}>Try again</button>
@@ -128,7 +128,7 @@ export default function LearnerDashboard() {
         ) : (
           <div className="space-y-6">
             {offers.map((w) => (
-              <div key={w.classId} role="status" className="flex flex-wrap items-center gap-4 border border-[#f0d3c1] bg-[#fbeee6] px-4 py-3.5">
+              <div key={w.classId} role="status" className="flex flex-wrap items-center gap-4 rounded-2xl border border-[#f0d3c1] bg-[#fbeee6] px-5 py-4">
                 <Hourglass className="h-5 w-5 shrink-0 text-[#c45c26]" />
                 <p className="min-w-0 flex-1 text-sm">
                   <strong className="font-medium">A seat opened in {w.classTitle}.</strong>{' '}

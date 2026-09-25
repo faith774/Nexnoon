@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
 import { toast } from 'sonner';
-import { Modal, btn, inputCls } from '../studio/ui';
+import { Modal, btn, inputCls } from './ui';
 import { apiClient, getErrorMessage } from '@/lib/api';
 import type { LearnerClass } from './types';
 
@@ -110,7 +110,7 @@ export default function ReviewModal({ cls, onClose, onSaved }: { cls: LearnerCla
           />
         </label>
         <p className="text-xs text-[#8a847a]">Your name and review appear on the class page.</p>
-        {error ? <p role="alert" className="border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-800">{error}</p> : null}
+        {error ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-800">{error}</p> : null}
       </div>
     </Modal>
   );

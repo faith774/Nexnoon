@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Award, CalendarDays, FileText, Hourglass, LogOut, MoreHorizontal, Star, Users } from 'lucide-react';
-import { btn, EmptyBlock, FilterChips, Pill, SectionLabel } from '../studio/ui';
+import { btn, EmptyBlock, FilterChips, Pill, SectionLabel } from './ui';
 import { enrollmentService, getErrorMessage } from '@/lib/api';
 import { useTimeFormat } from '@/lib/timezone';
 import { toast } from 'sonner';
@@ -31,9 +31,9 @@ function ClassCard({ c, onLeave, onReview }: { c: LearnerClass; onLeave: (c: Lea
   const inactive = c.state === 'left' || c.state === 'cancelled';
 
   return (
-    <article className={`flex flex-col border border-[#e4dfd6] bg-white ${inactive ? 'opacity-80' : ''}`}>
+    <article className={`flex flex-col rounded-2xl border border-[#ebe6de] bg-white ${inactive ? 'opacity-80' : ''}`}>
       <div className="relative">
-        <Thumb src={c.thumbnail} className="aspect-[16/7] w-full" />
+        <Thumb src={c.thumbnail} className="aspect-[16/7] w-full rounded-t-2xl" />
         <div className="absolute left-3 top-3"><Pill tone={meta.tone} className="bg-white/95">{meta.label}</Pill></div>
         {canLeave ? (
           <div ref={menuRef} className="absolute right-2 top-2">
@@ -42,12 +42,12 @@ function ClassCard({ c, onLeave, onReview }: { c: LearnerClass; onLeave: (c: Lea
               aria-label="More actions"
               aria-expanded={menu}
               onClick={() => setMenu((v) => !v)}
-              className="flex h-8 w-8 items-center justify-center bg-white/95 text-[#6b655c] hover:text-[#14110e]"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[#6b655c] shadow-sm hover:text-[#14110e]"
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
             {menu ? (
-              <div className="absolute right-0 z-10 mt-1 w-44 border border-[#e4dfd6] bg-white py-1 shadow-lg" role="menu">
+              <div className="absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-xl border border-[#ebe6de] bg-white py-1 shadow-lg" role="menu">
                 <button type="button" role="menuitem" onClick={() => { setMenu(false); onLeave(c); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-800 hover:bg-rose-50">
                   <LogOut className="h-4 w-4" /> Leave class
                 </button>
@@ -64,7 +64,7 @@ function ClassCard({ c, onLeave, onReview }: { c: LearnerClass; onLeave: (c: Lea
         </div>
 
         {c.state === 'cancelled' ? (
-          <p className="border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
+          <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
             This class was cancelled{c.cancellationReason ? `: ${c.cancellationReason}` : '.'}
             {c.payment?.status === 'refunded' ? ' Your payment was refunded.' : ''}
           </p>
@@ -82,15 +82,15 @@ function ClassCard({ c, onLeave, onReview }: { c: LearnerClass; onLeave: (c: Lea
               <Meter value={c.progress} label={`${c.title} progress`} />
             </div>
             <dl className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-[#faf8f5] px-2 py-2">
+              <div className="rounded-xl bg-[#f7f5f1] px-2 py-2">
                 <dt className="text-[10px] uppercase tracking-[0.12em] text-[#8a847a]">Attended</dt>
                 <dd className="mt-0.5 text-sm font-medium tabular-nums">{c.attended}/{c.held || 0}</dd>
               </div>
-              <div className="bg-[#faf8f5] px-2 py-2">
+              <div className="rounded-xl bg-[#f7f5f1] px-2 py-2">
                 <dt className="text-[10px] uppercase tracking-[0.12em] text-[#8a847a]">Work</dt>
                 <dd className="mt-0.5 text-sm font-medium tabular-nums">{c.assignments.total ? `${c.assignments.submitted}/${c.assignments.total}` : '—'}</dd>
               </div>
-              <div className="bg-[#faf8f5] px-2 py-2">
+              <div className="rounded-xl bg-[#f7f5f1] px-2 py-2">
                 <dt className="text-[10px] uppercase tracking-[0.12em] text-[#8a847a]">Grade</dt>
                 <dd className="mt-0.5 text-sm font-medium tabular-nums">{c.assignments.averageScore != null ? `${c.assignments.averageScore}%` : '—'}</dd>
               </div>
@@ -148,8 +148,8 @@ function WaitlistRow({ w, onChanged }: { w: LearnerWaitlist; onChanged: () => vo
   }
 
   return (
-    <li className={`flex flex-wrap items-center gap-4 border p-3.5 ${offered ? 'border-[#f0d3c1] bg-[#fbeee6]' : 'border-[#e4dfd6] bg-white'}`}>
-      <Thumb src={w.thumbnail} className="h-12 w-12 shrink-0" />
+    <li className={`flex flex-wrap items-center gap-4 rounded-2xl border p-3.5 ${offered ? 'border-[#f0d3c1] bg-[#fbeee6]' : 'border-[#ebe6de] bg-white'}`}>
+      <Thumb src={w.thumbnail} className="h-12 w-12 shrink-0 rounded-xl" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{w.classTitle}</p>
         <p className="text-xs text-[#6b655c]">
@@ -223,7 +223,7 @@ export default function ClassesTab({ data, onLeave, onReview, onChanged }: {
           <Link to="/browse" className={btn.link}><Users className="h-3.5 w-3.5" /> Find another class</Link>
         </div>
         {groups.list.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {groups.list.map((c) => <ClassCard key={c.enrollmentId} c={c} onLeave={onLeave} onReview={onReview} />)}
           </div>
         ) : (

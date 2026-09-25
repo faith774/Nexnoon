@@ -46,7 +46,6 @@ interface LiveClassesProps {
   title?: string;
   subtitle?: string;
   variant?: 'default' | 'large';
-  showBorderHover?: boolean;
   showTitle?: boolean;
   selectedCategory?: string;
   limit?: number;
@@ -61,7 +60,6 @@ export default function LiveClasses({
   title = 'Featured Classes',
   subtitle,
   variant = 'default',
-  showBorderHover = false,
   showTitle = true,
   selectedCategory = 'All',
   limit,
@@ -161,7 +159,6 @@ export default function LiveClasses({
               <ClassBrowseCard
                 key={`liveclass-${index}-${liveClass.id || liveClass.title}`}
                 data={liveClass}
-                showBorderHover={showBorderHover}
                 fullWidth
               />
             ))}

@@ -42,7 +42,6 @@ export default function Browse() {
         <LiveClasses
           showTitle={false}
           variant="large"
-          showBorderHover
           filters={applied}
           showLoadMore
         />

@@ -71,8 +71,8 @@ export function Thumb({ src, alt = '', className = '' }: { src?: string; alt?: s
 export function Meter({ value, label }: { value: number; label: string }) {
   const v = Math.max(0, Math.min(100, Math.round(value || 0)));
   return (
-    <div role="progressbar" aria-label={label} aria-valuenow={v} aria-valuemin={0} aria-valuemax={100} className="h-1.5 overflow-hidden bg-[#eee9e0]">
-      <div className={`h-full transition-[width] duration-700 ${v >= 100 ? 'bg-emerald-500' : 'bg-[#c45c26]'}`} style={{ width: `${v}%` }} />
+    <div role="progressbar" aria-label={label} aria-valuenow={v} aria-valuemin={0} aria-valuemax={100} className="h-1.5 overflow-hidden rounded-full bg-[#eee9e0]">
+      <div className={`h-full rounded-full transition-[width] duration-700 ${v >= 100 ? 'bg-emerald-500' : 'bg-[#c45c26]'}`} style={{ width: `${v}%` }} />
     </div>
   );
 }

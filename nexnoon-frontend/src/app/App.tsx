@@ -189,7 +189,6 @@ function Home() {
           title={categories[activeCategory]}
           showTitle={false}
           variant="large"
-          showBorderHover={false}
           selectedCategory={categories[activeCategory]}
           showLoadMore={true}
         />

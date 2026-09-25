@@ -144,9 +144,9 @@ export function Panel({
   );
 }
 
-export function EmptyBlock({ text, action }: { text: string; action?: ReactNode }) {
+export function EmptyBlock({ text, action, className = '' }: { text: string; action?: ReactNode; className?: string }) {
   return (
-    <div className="border border-dashed border-[#ddd6ca] bg-white/60 p-8 text-center">
+    <div className={`border border-dashed border-[#ddd6ca] bg-white/60 p-8 text-center ${className}`}>
       <p className="text-sm text-[#6b655c]">{text}</p>
       {action ? <div className="mt-3">{action}</div> : null}
     </div>
@@ -159,12 +159,14 @@ export function StatTile({
   hint,
   tone,
   onClick,
+  className = '',
 }: {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
   tone?: 'warn' | 'good';
   onClick?: () => void;
+  className?: string;
 }) {
   const Tag = onClick ? 'button' : 'div';
   return (
@@ -177,7 +179,7 @@ export function StatTile({
           : tone === 'good'
             ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/60 to-white'
             : 'border-[#e4dfd6]'
-      } ${onClick ? 'hover:border-[#14110e]/40' : ''}`}
+      } ${onClick ? 'hover:border-[#14110e]/40' : ''} ${className}`}
     >
       <p className="text-[11px] uppercase tracking-[0.14em] text-[#8a847a]">{label}</p>
       <p className="mt-1 font-serif text-2xl tracking-tight text-[#14110e]">{value}</p>
@@ -194,11 +196,13 @@ export function FilterChips<T extends string>({
   onChange,
   options,
   label,
+  chipClassName = '',
 }: {
   value: T;
   onChange: (v: NoInfer<T>) => void;
   options: { id: NoInfer<T>; label: string; count?: number }[];
   label?: string;
+  chipClassName?: string;
 }) {
   return (
     <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1.5">
@@ -213,7 +217,7 @@ export function FilterChips<T extends string>({
             onClick={() => onChange(o.id)}
             className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium transition-colors ${
               active ? 'border-[#14110e] bg-[#14110e] text-white' : 'border-[#ddd6ca] bg-white text-[#6b655c] hover:border-[#14110e]/40'
-            }`}
+            } ${chipClassName}`}
           >
             {o.label}
             {typeof o.count === 'number' ? (
@@ -417,7 +421,7 @@ function OverlayHeader({ title, subtitle, eyebrow, headerExtra, onClose }: Omit<
   );
 }
 
-export function Modal({ size = 'md', ...props }: OverlayProps & { size?: 'sm' | 'md' | 'lg' }) {
+export function Modal({ size = 'md', panelClassName = '', ...props }: OverlayProps & { size?: 'sm' | 'md' | 'lg'; panelClassName?: string }) {
   const { open, onClose, footer, children } = props;
   const panelRef = useOverlay(open, onClose);
   const reduce = useReducedMotion();
@@ -438,7 +442,7 @@ export function Modal({ size = 'md', ...props }: OverlayProps & { size?: 'sm' | 
             role="dialog"
             aria-modal="true"
             tabIndex={-1}
-            className={`relative flex max-h-[92vh] w-full ${width} flex-col bg-white shadow-[0_30px_80px_-20px_rgba(20,17,14,0.45)] outline-none`}
+            className={`relative flex max-h-[92vh] w-full ${width} flex-col bg-white shadow-[0_30px_80px_-20px_rgba(20,17,14,0.45)] outline-none ${panelClassName}`}
             initial={reduce ? false : { opacity: 0, y: 24, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.98 }}

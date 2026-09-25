@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { ArrowRight, CalendarDays, Clock, Compass, FileText, Radio, Video } from 'lucide-react';
-import { btn, EmptyBlock, Pill, SectionLabel } from '../studio/ui';
+import { btn, card, EmptyBlock, Pill, SectionLabel } from './ui';
 import { useTimeFormat } from '@/lib/timezone';
 import { assignmentMeta, classStateMeta, countdown, joinState, Meter, Thumb, useNow } from './shared';
 import type { LearnerData, LearnerSession, LearnerTab } from './types';
@@ -12,14 +12,16 @@ export function NextUpCard({ session, joinEarlyMinutes }: { session: LearnerSess
   const opensAt = new Date(new Date(session.startTime).getTime() - joinEarlyMinutes * 60_000).toISOString();
 
   return (
-    <section aria-label="Next session" className="relative overflow-hidden border border-[#14110e] bg-[#14110e] text-white">
-      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#c45c26]/30 blur-3xl" aria-hidden />
-      <div className="relative grid gap-0 md:grid-cols-[240px_minmax(0,1fr)]">
-        <Thumb src={session.thumbnail} className="hidden h-full min-h-[180px] w-full opacity-90 md:block" />
+    <section aria-label="Next session" className="relative overflow-hidden rounded-3xl bg-[#14110e] text-white">
+      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#889dd1]/25 blur-3xl" aria-hidden />
+      <div className="relative grid gap-0 md:grid-cols-[260px_minmax(0,1fr)]">
+        <div className="hidden p-3 pr-0 md:block">
+          <Thumb src={session.thumbnail} className="h-full min-h-[180px] w-full rounded-2xl" />
+        </div>
         <div className="flex flex-col gap-5 p-5 md:p-7">
           <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/60">
             {state === 'live' ? (
-              <span className="inline-flex items-center gap-1.5 bg-[#c45c26] px-2 py-0.5 font-medium text-white">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#c45c26] px-2.5 py-0.5 font-medium text-white">
                 <Radio className="h-3 w-3 animate-pulse" /> Live now
               </span>
             ) : (
@@ -39,7 +41,7 @@ export function NextUpCard({ session, joinEarlyMinutes }: { session: LearnerSess
           <div className="flex flex-wrap items-center gap-3">
             {state === 'later' ? (
               <>
-                <span className="inline-flex cursor-not-allowed items-center gap-1.5 bg-white/10 px-4 py-2.5 text-sm text-white/60" aria-disabled>
+                <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-full bg-white/10 px-5 py-2.5 text-sm text-white/60" aria-disabled>
                   <Video className="h-4 w-4" /> Join opens {t.time(opensAt)}
                 </span>
                 <Link to={`/classroom/${session.classId}`} className="text-sm text-white/80 underline-offset-4 hover:text-white hover:underline">
@@ -47,7 +49,7 @@ export function NextUpCard({ session, joinEarlyMinutes }: { session: LearnerSess
                 </Link>
               </>
             ) : (
-              <Link to={`/waiting-room/${session.classId}`} className="inline-flex items-center gap-1.5 bg-[#c45c26] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#a94d1f]">
+              <Link to={`/waiting-room/${session.classId}`} className="inline-flex items-center gap-1.5 rounded-full bg-[#c45c26] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#a94d1f]">
                 <Video className="h-4 w-4" /> {state === 'live' ? 'Join now' : 'Enter waiting room'}
               </Link>
             )}
@@ -68,7 +70,7 @@ export default function Overview({ data, goTo }: { data: LearnerData; goTo: (tab
 
   if (!data.classes.length && !data.waitlist.length) {
     return (
-      <section className="border border-[#e4dfd6] bg-white p-8 text-center md:p-12">
+      <section className={`${card} p-8 text-center md:p-12`}>
         <Compass className="mx-auto h-10 w-10 text-[#c45c26]" />
         <h2 className="mt-4 font-serif text-2xl tracking-tight">Find your first live class</h2>
         <p className="mx-auto mt-2 max-w-md text-sm text-[#6b655c]">
@@ -86,18 +88,18 @@ export default function Overview({ data, goTo }: { data: LearnerData; goTo: (tab
           Your classes
         </SectionLabel>
         {shown.length ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {shown.map((c) => {
               const meta = classStateMeta[c.state];
               return (
-                <article key={c.enrollmentId} className="flex flex-col border border-[#e4dfd6] bg-white">
-                  <Link to={`/classroom/${c.id}`} className="group relative block">
-                    <Thumb src={c.thumbnail} alt="" className="aspect-[16/8] w-full" />
+                <article key={c.enrollmentId} className={`${card} flex flex-col`}>
+                  <Link to={`/classroom/${c.id}`} className="group relative block overflow-hidden">
+                    <Thumb src={c.thumbnail} alt="" className="aspect-[16/8] w-full transition-transform duration-500 group-hover:scale-[1.03]" />
                     <span className="absolute left-3 top-3"><Pill tone={meta.tone} className="bg-white/95">{meta.label}</Pill></span>
                   </Link>
                   <div className="flex flex-1 flex-col gap-3 p-4">
                     <div className="min-w-0">
-                      <Link to={`/classroom/${c.id}`} className="block truncate font-serif text-lg leading-snug tracking-tight hover:text-[#c45c26]">{c.title}</Link>
+                      <Link to={`/classroom/${c.id}`} className="block truncate font-serif text-lg leading-snug tracking-tight">{c.title}</Link>
                       <p className="mt-0.5 truncate text-xs text-[#6b655c]">with {c.instructor.name}</p>
                     </div>
                     <div className="space-y-1.5">
@@ -137,7 +139,7 @@ export default function Overview({ data, goTo }: { data: LearnerData; goTo: (tab
             Coming up
           </SectionLabel>
           {week.length ? (
-            <ul className="divide-y divide-[#eee9e0] border border-[#e4dfd6] bg-white">
+            <ul className={`${card} divide-y divide-[#eee9e0]`}>
               {week.map((s) => (
                 <li key={s.id} className="flex items-center gap-4 px-4 py-3.5">
                   <div className="w-20 shrink-0">
@@ -170,7 +172,7 @@ export default function Overview({ data, goTo }: { data: LearnerData; goTo: (tab
             <ul className="space-y-2">
               {todo.map((a) => (
                 <li key={`${a.classId}-${a.id}`}>
-                  <Link to={`/assignments/${a.classId}`} className="block border border-[#e4dfd6] bg-white p-3.5 transition-colors hover:border-[#14110e]/40">
+                  <Link to={`/assignments/${a.classId}`} className="block rounded-2xl border border-[#ebe6de] bg-white p-4 transition-colors hover:border-[#14110e]/30">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-medium">{a.title}</p>
                       <Pill tone={assignmentMeta[a.status].tone}>{assignmentMeta[a.status].label}</Pill>
@@ -191,7 +193,7 @@ export default function Overview({ data, goTo }: { data: LearnerData; goTo: (tab
         {data.certificates.length ? (
           <div>
             <SectionLabel>Latest certificate</SectionLabel>
-            <Link to={`/certificates/${data.certificates[0].certificateId}`} className="block border border-[#f0d3c1] bg-gradient-to-br from-[#fbeee6] to-white p-4 transition-colors hover:border-[#c45c26]">
+            <Link to={`/certificates/${data.certificates[0].certificateId}`} className="block rounded-2xl border border-[#f0d3c1] bg-gradient-to-br from-[#fbeee6] to-white p-5 transition-colors hover:border-[#c45c26]">
               <p className="text-[11px] uppercase tracking-[0.16em] text-[#9a4518]">Certificate of completion</p>
               <p className="mt-1 font-serif text-lg leading-snug">{data.certificates[0].classTitle}</p>
               <p className="mt-2 text-xs text-[#6b655c]">View, download or share <ArrowRight className="inline h-3 w-3" /></p>

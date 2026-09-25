@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight, Award, Paperclip, RotateCcw } from 'lucide-react';
-import { btn, EmptyBlock, FilterChips, Pill } from '../studio/ui';
+import { btn, card, EmptyBlock, FilterChips, Pill } from './ui';
 import { formatMoney } from '@/lib/api';
 import { useTimeFormat } from '@/lib/timezone';
 import { assignmentMeta, Thumb } from './shared';
@@ -47,7 +47,7 @@ export function AssignmentsTab({ data }: { data: LearnerData }) {
             const meta = assignmentMeta[a.status];
             const pct = a.grade ? Math.round((a.grade.score / (a.grade.maxScore || 100)) * 100) : null;
             return (
-              <li key={`${a.classId}-${a.id}`} className="border border-[#e4dfd6] bg-white">
+              <li key={`${a.classId}-${a.id}`} className={card}>
                 <Link to={`/assignments/${a.classId}`} className="flex flex-wrap items-start gap-4 p-4 transition-colors hover:bg-[#faf8f5]">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -88,21 +88,21 @@ export function CertificatesTab({ data }: { data: LearnerData }) {
   return (
     <div className="space-y-8">
       {data.certificates.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {data.certificates.map((c) => (
             <Link
               key={c.certificateId}
               to={`/certificates/${c.certificateId}`}
-              className="group relative flex aspect-[1.414/1] flex-col justify-between overflow-hidden border border-[#e4dfd6] bg-[#fffdf9] p-5 transition-shadow hover:shadow-[0_20px_50px_-25px_rgba(20,17,14,0.4)]"
+              className="group relative flex aspect-[1.414/1] flex-col justify-between overflow-hidden rounded-2xl border border-[#ebe6de] bg-[#fffdf9] p-5 transition-shadow hover:shadow-[0_20px_50px_-25px_rgba(20,17,14,0.4)]"
             >
-              <div className="absolute inset-2 border border-[#c45c26]/30" aria-hidden />
+              <div className="absolute inset-2 rounded-xl border border-[#c45c26]/30" aria-hidden />
               <div className="relative flex items-center justify-between text-[10px] uppercase tracking-[0.22em] text-[#8a847a]">
                 <span className="font-semibold text-[#14110e]">Nexnoon</span>
                 <Award className="h-4 w-4 text-[#c45c26]" />
               </div>
               <div className="relative">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-[#8a847a]">Certificate of completion</p>
-                <p className="mt-1 font-serif text-lg leading-snug tracking-tight group-hover:text-[#c45c26]">{c.classTitle}</p>
+                <p className="mt-1 font-serif text-lg leading-snug tracking-tight">{c.classTitle}</p>
                 <p className="mt-1 text-xs text-[#6b655c]">with {c.instructor}</p>
               </div>
               <div className="relative flex items-center justify-between text-[11px] text-[#8a847a]">
@@ -119,10 +119,10 @@ export function CertificatesTab({ data }: { data: LearnerData }) {
       {inProgress.length ? (
         <div>
           <p className="mb-2.5 text-[11px] font-medium uppercase tracking-[0.16em] text-[#8a847a]">On the way</p>
-          <ul className="divide-y divide-[#eee9e0] border border-[#e4dfd6] bg-white">
+          <ul className={`${card} divide-y divide-[#eee9e0]`}>
             {inProgress.map((c) => (
               <li key={c.id} className="flex items-center gap-4 px-4 py-3">
-                <Thumb src={c.thumbnail} className="h-10 w-10 shrink-0" />
+                <Thumb src={c.thumbnail} className="h-10 w-10 shrink-0 rounded-lg" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{c.title}</p>
                   <p className="text-xs text-[#8a847a]">
@@ -153,7 +153,7 @@ export function PaymentsTab({ data, onLeave }: { data: LearnerData; onLeave: (c:
   return (
     <div className="space-y-4">
       {data.payments.length ? (
-        <div className="overflow-x-auto border border-[#e4dfd6] bg-white">
+        <div className="overflow-x-auto rounded-2xl border border-[#ebe6de] bg-white">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-[#eee9e0] text-left text-[11px] uppercase tracking-[0.14em] text-[#8a847a]">

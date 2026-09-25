@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { CalendarPlus, Play, Radio, Video } from 'lucide-react';
-import { btn, EmptyBlock, Pill, SegmentedTabs } from '../studio/ui';
+import { btn, card, EmptyBlock, Pill, SegmentedTabs } from './ui';
 import { useTimeFormat } from '@/lib/timezone';
 import { attendanceMeta, downloadCalendar, joinState, useNow } from './shared';
 import type { LearnerData } from './types';
@@ -52,7 +52,7 @@ export default function ScheduleTab({ data }: { data: LearnerData }) {
                   </span>
                   {key === todayKey || key === tomorrowKey ? <span className="text-xs text-[#8a847a]">{t.day(list[0].startTime)}</span> : null}
                 </h3>
-                <ul className="divide-y divide-[#eee9e0] border border-[#e4dfd6] bg-white">
+                <ul className={`${card} divide-y divide-[#eee9e0]`}>
                   {list.map((s) => {
                     const state = joinState(s, data.policy.joinEarlyMinutes, now);
                     return (
@@ -88,7 +88,7 @@ export default function ScheduleTab({ data }: { data: LearnerData }) {
           <EmptyBlock text="No upcoming sessions. When instructors schedule sessions they'll appear here, and we'll remind you by email." />
         )
       ) : data.pastSessions.length ? (
-        <ul className="divide-y divide-[#eee9e0] border border-[#e4dfd6] bg-white">
+        <ul className={`${card} divide-y divide-[#eee9e0]`}>
           {data.pastSessions.map((s) => {
             const meta = attendanceMeta[s.attendance];
             return (
