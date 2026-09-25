@@ -8,7 +8,7 @@ export default function Hero({ variant = 'home' }: { variant?: 'home' | 'browse'
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
-        <section className="relative z-40 bg-gray-50 py-20 border-b border-gray-200">
+        <section className="relative z-40 bg-[#14110e] py-20 md:py-28">
           {/* Background Image */}
           <div className="absolute inset-0 z-0 overflow-hidden">
             <img
@@ -19,7 +19,14 @@ export default function Hero({ variant = 'home' }: { variant?: 'home' | 'browse'
               className="w-full h-full object-cover"
             />
             {/* Dark Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/60 to-black/50"></div>
+            <div className="absolute inset-0 bg-[#14110e]/70" />
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage:
+                  'radial-gradient(ellipse 60% 70% at 50% 40%, rgba(20,17,14,0.2), rgba(20,17,14,0.75)), radial-gradient(ellipse 50% 60% at 0% 0%, rgba(136,157,209,0.3), transparent 60%)',
+              }}
+            />
           </div>
 
           <div className="w-[90vw] mx-auto relative z-10">
@@ -31,10 +38,10 @@ export default function Hero({ variant = 'home' }: { variant?: 'home' | 'browse'
                   </span>
                 </div>
               )}
-              <h1 className="text-4xl md:text-5xl font-bold text-white text-center mb-4">
+              <h1 className="mb-4 text-center font-serif text-4xl leading-[1.05] tracking-tight text-white md:text-6xl">
                 {isBrowse ? 'Learn Live, Grow Fast' : 'Discover Live Classes'}
               </h1>
-              {!isBrowse && <p className="text-white/90 text-lg text-center mb-10">
+              {!isBrowse && <p className="mb-9 text-center text-base text-white/65 md:text-lg">
                 Find the perfect class to enhance your skills
               </p>}
 

@@ -338,19 +338,19 @@ export default function ClassSearchAutocomplete({
               onKeyDown={onKeyDown}
               placeholder={placeholder}
               aria-label="Search classes"
-              className={`w-full rounded-full border border-gray-200 bg-white py-3.5 pl-4 pr-11 text-sm text-black outline-none transition-colors focus:border-black h-auto ${inputClassName}`}
+              className={`h-10 w-full rounded-full border border-transparent bg-[#f3f1ec] pl-10 pr-4 text-sm text-[#14110e] outline-none transition-colors placeholder:text-[#9a948a] hover:bg-[#ece9e2] focus:border-[#d9d3c8] focus:bg-white ${inputClassName}`}
             />
             <button
               type="submit"
               aria-label="Search"
-              className="absolute right-4 top-1/2 -translate-y-1/2"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8a847a] hover:text-[#14110e]"
             >
-              <Search className="h-4 w-4 text-black" />
+              <Search className="h-4 w-4" />
             </button>
           </>
         ) : (
           <>
-            <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Search className="pointer-events-none absolute left-5 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-[#9a948a]" />
             <input
               type="search"
               value={value}
@@ -366,11 +366,11 @@ export default function ClassSearchAutocomplete({
               }}
               onKeyDown={onKeyDown}
               placeholder={placeholder}
-              className={`w-full rounded-full border-2 border-white/20 bg-white/95 py-6 pl-14 pr-32 text-base outline-none focus:border-black ${inputClassName}`}
+              className={`h-14 w-full rounded-full border border-transparent bg-white pl-12 pr-32 text-[15px] text-[#14110e] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.6)] outline-none transition placeholder:text-[#a39d93] focus:border-[#c8d2ea] focus:ring-4 focus:ring-white/20 sm:h-16 sm:pl-14 sm:pr-36 ${inputClassName}`}
             />
             <button
               type="submit"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black px-8 py-2.5 text-sm font-medium text-white hover:bg-black/90"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-[#14110e] px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#2b2722] sm:px-8 sm:py-3"
             >
               Search
             </button>

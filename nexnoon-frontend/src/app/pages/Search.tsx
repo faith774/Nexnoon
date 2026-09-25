@@ -1,17 +1,17 @@
 import BrandLoader from '@/app/components/BrandLoader';
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { ArrowRight, BookOpen, Search as SearchIcon, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowRight, BookOpen, Search as SearchIcon } from 'lucide-react';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import ClassBrowseCard from '@/app/components/ClassBrowseCard';
 import ClassFiltersSheet from '@/app/components/ClassFiltersSheet';
+import CategoryFilterBar from '@/app/components/CategoryFilterBar';
 import ClassSearchAutocomplete from '@/app/components/ClassSearchAutocomplete';
 import { Button } from '@/app/components/ui/button';
 import { classService, courseService } from '@/lib/api';
 import type { Class, Course } from '@/types/api';
 import {
-  BROWSE_CATEGORIES,
   DEFAULT_CLASS_FILTERS,
   applyClassBrowseFilters,
   countActiveFilters,
@@ -50,31 +50,6 @@ function apiClassToCard(c: Class & { _id?: string }): ClassBrowseCardData {
     enrolledStudents: c.enrolledStudents || 0,
     maxStudents: c.maxStudents,
   };
-}
-
-function activeFilterLabels(filters: ClassBrowseFilters): { key: keyof ClassBrowseFilters; label: string }[] {
-  const chips: { key: keyof ClassBrowseFilters; label: string }[] = [];
-  if (filters.category !== 'All') chips.push({ key: 'category', label: filters.category });
-  if (filters.level !== 'all') chips.push({ key: 'level', label: filters.level });
-  if (filters.language !== 'all') chips.push({ key: 'language', label: filters.language });
-  if (filters.date !== 'all') {
-    const map = { week: 'This week', month: 'This month', upcoming: 'Upcoming' } as const;
-    chips.push({ key: 'date', label: map[filters.date] });
-  }
-  if (filters.timeOfDay !== 'all') {
-    chips.push({
-      key: 'timeOfDay',
-      label: filters.timeOfDay.charAt(0).toUpperCase() + filters.timeOfDay.slice(1),
-    });
-  }
-  if (filters.duration !== 'all') {
-    const map = { short: 'Under 1 hr', medium: '1–3 hrs', long: 'Over 3 hrs' } as const;
-    chips.push({ key: 'duration', label: map[filters.duration] });
-  }
-  if (filters.price !== 'all') {
-    chips.push({ key: 'price', label: filters.price === 'free' ? 'Free' : 'Paid' });
-  }
-  return chips;
 }
 
 export default function Search() {
@@ -130,21 +105,8 @@ export default function Search() {
   );
 
   const activeCount = useMemo(() => countActiveFilters(filters), [filters]);
-  const filterChips = useMemo(() => activeFilterLabels(filters), [filters]);
 
   const clearFilters = () => setFilters({ ...DEFAULT_CLASS_FILTERS });
-
-  const removeFilter = (key: keyof ClassBrowseFilters) => {
-    setFilters((prev) => ({
-      ...prev,
-      [key]:
-        key === 'category'
-          ? 'All'
-          : key === 'language'
-            ? 'all'
-            : DEFAULT_CLASS_FILTERS[key],
-    }));
-  };
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-[#14110e]">
@@ -160,7 +122,7 @@ export default function Search() {
                 'radial-gradient(ellipse 80% 60% at 10% 0%, rgba(136,157,209,0.45), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 20%, rgba(196,92,38,0.2), transparent 50%)',
             }}
           />
-          <div className="relative w-[90vw] max-w-[1400px] mx-auto py-12 md:py-16">
+          <div className="relative w-[90vw] mx-auto py-12 md:py-16">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/45 mb-3">
               Nexnoon search
             </p>
@@ -194,69 +156,15 @@ export default function Search() {
         </section>
 
         {/* Section 2 — Refine bar */}
-        <section className="sticky top-16 z-20 border-b border-[#ebe6de] bg-white/95 backdrop-blur-md">
-          <div className="w-[90vw] max-w-[1400px] mx-auto py-3.5">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide flex-1 min-w-0 pb-0.5">
-                {BROWSE_CATEGORIES.map((category) => (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => setFilters((p) => ({ ...p, category }))}
-                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                      filters.category === category
-                        ? 'bg-[#14110e] text-white'
-                        : 'bg-[#f3f1ec] text-[#3d3933] hover:bg-[#e8e4dc]'
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setSheetOpen(true)}
-                className="relative shrink-0 inline-flex items-center gap-2 rounded-full border border-[#e0dbd2] bg-white px-4 py-2 text-sm font-medium hover:border-[#14110e] transition-colors"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                Filters
-                {activeCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#14110e] px-1 text-[10px] font-semibold text-white">
-                    {activeCount}
-                  </span>
-                ) : null}
-              </button>
-            </div>
-
-            {filterChips.length > 0 ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {filterChips.map((chip) => (
-                  <button
-                    key={`${chip.key}-${chip.label}`}
-                    type="button"
-                    onClick={() => removeFilter(chip.key)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#ebe6de] bg-[#faf9f6] px-3 py-1 text-xs font-medium text-[#3d3933] hover:border-[#14110e]"
-                  >
-                    {chip.label}
-                    <X className="h-3 w-3 text-[#8a847a]" />
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="text-xs font-semibold text-[#7a746a] hover:text-[#14110e] px-1"
-                >
-                  Clear all
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </section>
+        <CategoryFilterBar
+          value={filters}
+          onChange={setFilters}
+          onOpenFilters={() => setSheetOpen(true)}
+        />
 
         {/* Section 3 — Results */}
         <section className="flex-1 bg-[#f7f5f1]">
-          <div className="w-[90vw] max-w-[1400px] mx-auto py-10 md:py-12">
+          <div className="w-[90vw] mx-auto py-10 md:py-12">
             {matchingCourses.length > 0 ? (
               <div className="mb-10">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a847a] mb-3">
@@ -341,7 +249,7 @@ export default function Search() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 md:gap-8">
                 {filteredResults.map((card) => (
                   <ClassBrowseCard key={card.id} data={card} showBorderHover fullWidth />
                 ))}

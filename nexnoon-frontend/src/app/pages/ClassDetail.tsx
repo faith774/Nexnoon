@@ -666,7 +666,7 @@ export default function ClassDetail() {
                 </section>
               )}
 
-              <section className="border-t border-gray-100 pt-10">
+              <section className="border-t border-[#ebe6de] pt-10">
                 <CertificatePreview
                   title={apiClass.title}
                   instructor={apiClass.instructor.name}
@@ -781,7 +781,8 @@ export default function ClassDetail() {
           <LiveClasses
             title="Related courses"
             subtitle="Continue your learning journey"
-            limit={4}
+            limit={5}
+            excludeId={id}
           />
         </div>
 

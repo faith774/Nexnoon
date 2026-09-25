@@ -54,6 +54,7 @@ interface LiveClassesProps {
   priceRange?: 'all' | 'free' | 'paid';
   filters?: Partial<ClassBrowseFilters>;
   showLoadMore?: boolean;
+  excludeId?: string;
 }
 
 export default function LiveClasses({
@@ -67,6 +68,7 @@ export default function LiveClasses({
   showLoadMore = false,
   priceRange = 'all',
   filters: filtersProp,
+  excludeId,
 }: LiveClassesProps) {
   const [displayCount, setDisplayCount] = useState(32);
   const [apiClasses, setApiClasses] = useState<ClassBrowseCardData[]>([]);
@@ -104,8 +106,8 @@ export default function LiveClasses({
   }, [retry]);
 
   const filteredClasses = useMemo(
-    () => applyClassBrowseFilters(apiClasses, filters),
-    [apiClasses, filters]
+    () => applyClassBrowseFilters(apiClasses, filters).filter((c) => c.id !== excludeId),
+    [apiClasses, filters, excludeId]
   );
 
   const cardsToShow = limit || (showLoadMore ? displayCount : filteredClasses.length);
@@ -113,9 +115,19 @@ export default function LiveClasses({
   const hasMore = showLoadMore && displayCount < filteredClasses.length;
 
   return (
-    <section className={`${variant === 'large' ? 'py-16' : 'py-12'}`}>
-      <div className="w-[90vw] max-w-[1400px] mx-auto">
-        <div className="max-w-[1328px] mx-auto">
+    <section
+      className={
+        showTitle
+          ? variant === 'large'
+            ? 'py-16'
+            : 'py-12'
+          : variant === 'large'
+            ? 'pt-6 pb-16'
+            : 'pt-6 pb-12'
+      }
+    >
+      <div className="w-[90vw] mx-auto">
+        <div>
           {showTitle && (
             <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
               <div>
@@ -144,12 +156,13 @@ export default function LiveClasses({
             </p>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 max-w-[1328px] mx-auto justify-items-center">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {currentClasses.map((liveClass, index) => (
               <ClassBrowseCard
                 key={`liveclass-${index}-${liveClass.id || liveClass.title}`}
                 data={liveClass}
                 showBorderHover={showBorderHover}
+                fullWidth
               />
             ))}
           </div>

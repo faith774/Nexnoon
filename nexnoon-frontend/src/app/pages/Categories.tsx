@@ -1,167 +1,86 @@
 import { useBackendData } from '@/hooks/useBackendData';
-import { 
-  Code, 
-  Palette, 
-  TrendingUp, 
-  Briefcase, 
-  Camera, 
-  Music,
-  Heart,
-  Globe
-} from "lucide-react";
-import { useNavigate } from "react-router";
+import { ArrowUpRight } from "lucide-react";
+import { Link } from "react-router";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
-
-const categories = [
-  {
-    id: 1,
-    name: "Development",
-    slug: "development",
-    icon: Code,
-    image: "https://images.unsplash.com/photo-1565229284535-2cbbe3049123?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9ncmFtbWluZyUyMGNvZGluZyUyMGRldmVsb3BlcnxlbnwxfHx8fDE3Njg3NDEzMjF8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    color: "from-blue-500 to-blue-600"
-  },
-  {
-    id: 2,
-    name: "Design",
-    slug: "design",
-    icon: Palette,
-    image: "https://images.unsplash.com/photo-1624901344246-8759f305fef3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjcmVhdGl2ZSUyMGRlc2lnbiUyMGFydHxlbnwxfHx8fDE3Njg4MDQ3ODR8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    color: "from-purple-500 to-purple-600"
-  },
-  {
-    id: 3,
-    name: "Marketing",
-    slug: "marketing",
-    icon: TrendingUp,
-    image: "https://images.unsplash.com/photo-1702047094974-a3475a6e37f5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYXJrZXRpbmclMjBkaWdpdGFsJTIwd29ya3NwYWNlfGVufDF8fHx8MTc2ODgwNDc4NHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    color: "from-green-500 to-green-600"
-  },
-  {
-    id: 4,
-    name: "Business",
-    slug: "business",
-    icon: Briefcase,
-    image: "https://images.unsplash.com/photo-1766867264693-e34f484d3371?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMHByb2Zlc3Npb25hbCUyMHRlYWNoaW5nfGVufDF8fHx8MTc2ODgwNDc4NHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    color: "from-orange-500 to-orange-600"
-  },
-  {
-    id: 5,
-    name: "Photography",
-    slug: "photography",
-    icon: Camera,
-    image: "https://images.unsplash.com/photo-1613398773682-9e272a85f203?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjB0ZWNobm9sb2d5JTIwbGFwdG9wfGVufDF8fHx8MTc2ODgwMDY2Mnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    color: "from-pink-500 to-pink-600"
-  },
-  {
-    id: 6,
-    name: "Music",
-    slug: "music",
-    icon: Music,
-    image: "https://images.unsplash.com/photo-1759984782106-4b56d0aa05b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvbmxpbmUlMjBsZWFybmluZyUyMHN0dWRlbnR8ZW58MXx8fHwxNzY4ODAyMjUyfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    color: "from-red-500 to-red-600"
-  },
-  {
-    id: 7,
-    name: "Health & Wellness",
-    slug: "health-wellness",
-    icon: Heart,
-    image: "https://images.unsplash.com/photo-1759984782106-4b56d0aa05b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvbmxpbmUlMjBsZWFybmluZyUyMHN0dWRlbnR8ZW58MXx8fHwxNzY4ODAyMjUyfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    color: "from-[#889dd1] to-[#7a8ec5]"
-  },
-  {
-    id: 8,
-    name: "Languages",
-    slug: "languages",
-    icon: Globe,
-    image: "https://images.unsplash.com/photo-1613398773682-9e272a85f203?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjB0ZWNobm9sb2d5JTIwbGFwdG9wfGVufDF8fHx8MTc2ODgwMDY2Mnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    color: "from-indigo-500 to-indigo-600"
-  }
-];
+import { CATEGORIES as categories } from "@/lib/categories";
 
 export default function Categories() {
-  const navigate = useNavigate();
   const categoryQuery = useBackendData<{ name: string; count: number }[]>("/data/categories", true);
 
+  const countLabel = (name: string) => {
+    if (categoryQuery.isError) return "Unavailable";
+    if (categoryQuery.isPending) return "Loading…";
+    const count = categoryQuery.data?.find((c) => c.name === name)?.count || 0;
+    return `${count} live ${count === 1 ? "class" : "classes"}`;
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+    <div className="min-h-screen bg-white">
       <Header />
       <main>
-        {/* Hero Section with Background */}
-        <section className="relative overflow-hidden min-h-[400px] h-[50vh] flex items-center">
-          {/* Background Image with Modern Overlay */}
-          <div className="absolute inset-0 z-0">
-            <img 
+        <section className="relative overflow-hidden bg-[#14110e] py-20 md:py-28">
+          <div className="absolute inset-0">
+            <img
               src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080"
-              alt="Categories background"
-              className="w-full h-full object-cover"
+              alt=""
+              className="h-full w-full object-cover"
             />
-            {/* Pure black/white gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-black/95 via-black/90 to-black/85"></div>
-            
-            {/* Subtle geometric accent */}
-            <div className="absolute top-0 right-0 w-1/2 h-full opacity-5">
-              <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <polygon points="100,0 100,100 50,100" fill="white"/>
-              </svg>
-            </div>
+            <div className="absolute inset-0 bg-[#14110e]/75" />
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage:
+                  'radial-gradient(ellipse 60% 70% at 50% 40%, rgba(20,17,14,0.2), rgba(20,17,14,0.75)), radial-gradient(ellipse 50% 60% at 100% 0%, rgba(136,157,209,0.28), transparent 60%)',
+              }}
+            />
           </div>
 
-          <div className="w-[90vw] mx-auto relative z-10">
-            <div className="max-w-4xl mx-auto text-center">
-              {/* Page Header */}
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-                Explore Live Classes
-              </h1>
-              <p className="text-base sm:text-lg text-gray-200 max-w-2xl mx-auto">
-                Explore Live Classes to enhance your learning experience.
-              </p>
-            </div>
+          <div className="relative mx-auto w-[90vw] text-center">
+            <h1 className="mb-4 font-serif text-4xl leading-[1.05] tracking-tight text-white md:text-6xl">
+              Explore Live Classes
+            </h1>
+            <p className="mx-auto max-w-2xl text-base text-white/65 md:text-lg">
+              Explore Live Classes to enhance your learning experience.
+            </p>
           </div>
         </section>
 
-        <section className="py-12 sm:py-16 lg:py-20">
-          <div className="w-[90vw] mx-auto px-4 sm:px-6">
-            {/* Categories Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {categories.map((category) => {
-                const Icon = category.icon;
-                return (
-                  <div
-                    key={category.id}
-                    className="group rounded-2xl overflow-hidden cursor-pointer w-full transition-all duration-300"
-                    onClick={() => navigate(`/category/${category.slug}`)}
-                  >
-                    {/* Image */}
-                    <div className="relative h-56 overflow-hidden bg-gray-100 rounded-2xl">
-                      <ImageWithFallback
-                        src={category.image}
-                        alt={category.name}
-                        className="w-full h-full object-cover"
-                      />
-                      
-                      {/* Icon Badge - positioned at top left */}
-                      <div className="absolute top-4 left-4 p-2.5 rounded-full bg-gray-800 shadow-lg z-10">
-                        <Icon className="h-5 w-5 text-white" />
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-[10px] px-[0px] py-[5px]">
-                      <h3 className="font-semibold text-base text-gray-900 mb-1 line-clamp-1 group-hover:text-[#889dd1] transition-colors">
-                        {category.name}
-                      </h3>
-
-                      <div className="flex items-center text-sm text-gray-600 m-[0px] -mt-1 mx-[0px] my-[5px]">
-                        <span className="text-[12px]">{categoryQuery.isError ? "Unavailable" : categoryQuery.isPending ? "Loading..." : `${categoryQuery.data?.find(c => c.name === category.name)?.count || 0} live classes`}</span>
-                      </div>
-                    </div>
+        <section className="pb-20 pt-12 md:pt-16">
+          <div className="mx-auto grid w-[90vw] grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {categories.map((category) => {
+              const Icon = category.icon;
+              return (
+                <Link
+                  key={category.slug}
+                  to={`/category/${category.slug}`}
+                  className="group block rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-[#889dd1] focus-visible:ring-offset-4"
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-[#ebe6de]">
+                    <ImageWithFallback
+                      src={category.image}
+                      alt={category.name}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#14110e]/30 via-transparent to-transparent" />
+                    <span className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-[#14110e] shadow-sm backdrop-blur">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="absolute bottom-3 right-3 flex h-9 w-9 translate-y-1 items-center justify-center rounded-full bg-[#14110e] text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                      <ArrowUpRight className="h-4 w-4" />
+                    </span>
                   </div>
-                );
-              })}
-            </div>
+
+                  <div className="px-0.5 pt-3">
+                    <h3 className="font-serif text-lg leading-snug tracking-tight text-[#14110e] transition-colors group-hover:text-[#5b6fa3]">
+                      {category.name}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-[#6b655c]">{countLabel(category.name)}</p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </section>
       </main>

@@ -1,6 +1,7 @@
-import { Clock, MapPin, Radio, Users } from 'lucide-react';
+import { Radio } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { classDetailUrl } from '@/lib/url';
+import { useTimeFormat } from '@/lib/timezone';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 
 export type ClassBrowseCardData = {
@@ -45,12 +46,19 @@ export default function ClassBrowseCard({
   fullWidth?: boolean;
 }) {
   const navigate = useNavigate();
+  const t = useTimeFormat();
   const safeId = data.id != null && data.id !== '' ? String(data.id) : '';
-  const location = data.location?.trim() || 'Online, Live';
   const duration = data.duration?.trim() || '';
   const enrolled = data.enrolledStudents ?? 0;
   const max = data.maxStudents;
   const showSeats = typeof max === 'number' && max > 0;
+  const left = showSeats ? Math.max(0, max - enrolled) : 0;
+  const full = showSeats && left === 0;
+  const fewLeft = showSeats && !full && left <= Math.max(3, Math.ceil(max * 0.2));
+  const starts = data.startDate && !Number.isNaN(new Date(data.startDate).getTime()) ? data.startDate : '';
+  const eyebrow = [data.category, data.level].filter(Boolean).join(' · ');
+  const meta = [data.instructor, starts ? t.day(starts) : '', duration].filter(Boolean);
+  const hover = showBorderHover ? 'group-hover:text-[#889dd1]' : 'group-hover:text-[#c45c26]';
 
   return (
     <div
@@ -65,57 +73,40 @@ export default function ClassBrowseCard({
       }}
       className={`group cursor-pointer w-full min-w-0 ${fullWidth ? '' : 'max-w-[320px]'}`}
     >
-      <div className="relative h-56 overflow-hidden bg-[#ebe6de] rounded-2xl">
+      <div className="relative aspect-[4/3] overflow-hidden bg-[#ebe6de] rounded-2xl">
         <ImageWithFallback
           src={data.image}
           alt={data.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-80" />
-        <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between">
-          <span className="px-2.5 py-1 rounded-full bg-white/85 text-[#14110e] text-[10px] font-semibold tracking-wide backdrop-blur-sm inline-flex items-center gap-1">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
+        <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#14110e] backdrop-blur-sm">
             <Radio className="h-3 w-3 text-[#c45c26]" />
-            Live
+            {data.language ? `Live · ${data.language}` : 'Live online'}
           </span>
-
-        </div>
-      </div>
-
-      <div className="pt-3 px-0.5 pb-1">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <h3
-            className={`min-w-0 flex-1 text-base font-semibold leading-snug text-[#14110e] line-clamp-1 ${
-              showBorderHover
-                ? 'group-hover:text-[#889dd1] transition-colors'
-                : 'group-hover:text-[#3a5f8a] transition-colors'
-            }`}
-          >
-            {data.title}
-          </h3>
-          <p className="shrink-0 text-[15px] font-semibold tabular-nums text-[#14110e]">
-            {formatPrice(data.price, data.currency)}
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between gap-2 text-sm text-[#6b655c] -mt-0.5">
-          <div className="flex items-center min-w-0 -ml-0.5">
-            <MapPin className="h-4 w-4 mr-1 shrink-0 text-[#8a847a]" />
-            <span className="text-[12px] truncate">{location}</span>
-          </div>
-          {duration ? (
-            <span className="inline-flex items-center gap-1 text-[12px] text-[#8a847a] shrink-0">
-              <Clock className="h-3.5 w-3.5" />
-              {duration}
+          {full ? (
+            <span className="rounded-full bg-[#14110e]/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">Full</span>
+          ) : fewLeft ? (
+            <span className="rounded-full bg-[#c45c26] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+              {left} seat{left === 1 ? '' : 's'} left
             </span>
           ) : null}
         </div>
+        <span className="absolute bottom-3 right-3 z-10 rounded-full bg-white px-3 py-1 text-sm font-semibold tabular-nums text-[#14110e] shadow-sm">
+          {formatPrice(data.price, data.currency)}
+        </span>
+      </div>
 
-        {showSeats ? (
-          <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] tabular-nums text-[#8a847a]">
-            <Users className="h-3 w-3" />
-            {enrolled}/{max} seats
-            {enrolled >= max ? ' · Full' : ''}
-          </p>
+      <div className="px-0.5 pt-3">
+        {eyebrow ? (
+          <p className="truncate text-[10px] font-medium uppercase tracking-[0.16em] text-[#8a847a]">{eyebrow}</p>
+        ) : null}
+        <h3 className={`mt-1 line-clamp-2 font-serif text-[16px] leading-snug tracking-tight text-[#14110e] transition-colors ${hover}`}>
+          {data.title}
+        </h3>
+        {meta.length > 0 ? (
+          <p className="mt-1.5 truncate text-xs text-[#6b655c]">{meta.join(' · ')}</p>
         ) : null}
       </div>
     </div>
