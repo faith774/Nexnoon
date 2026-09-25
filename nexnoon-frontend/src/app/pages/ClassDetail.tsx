@@ -1,7 +1,7 @@
 import { CertificatePreview } from '@/app/components/CertificatePreview';
 import { useParams, useNavigate, Link } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Calendar, Clock, Users, Play, CheckCircle2, Globe2, Layers, Signal } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, Users, Play, CheckCircle2, FolderKanban, Globe2, Signal, Video } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
@@ -114,14 +114,30 @@ export default function ClassDetail() {
   const teachingTeam = (apiClass.teachingTeam || []).filter(
     (m) => m.status === 'accepted' || m.role === 'lead'
   );
-  const modules: { id?: string; title: string; topics: string[]; project: string }[] = details.curriculum?.length
-    ? details.curriculum
-    : (apiClass.schedule || []).map((s) => ({
-        id: s.moduleId,
-        title: s.title,
-        topics: s.description ? [s.description] : [t.dateTime(s.startTime)],
-        project: 'Project details to be provided by the instructor.',
-      }));
+  const curriculum: { id?: string; title: string; topics: string[]; project: string }[] = details.curriculum || [];
+  const sessions = [...(apiClass.schedule || [])].sort(
+    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  );
+  const sessionTopics = (s: (typeof sessions)[number]) =>
+    (s.description || '').split('\n').map((line) => line.trim()).filter(Boolean);
+  type Step = { key: string; title: string; topics: string[]; project?: string; live?: typeof sessions };
+  let steps: Step[];
+  if (curriculum.length) {
+    const linked = sessions.some((s) => s.moduleId);
+    const assigned = new Set<string>();
+    steps = curriculum.map((m, i) => {
+      // Older classes have no module links; pair sessions with modules by position when the counts match.
+      const live = linked
+        ? sessions.filter((s) => m.id && s.moduleId === m.id)
+        : curriculum.length === sessions.length ? [sessions[i]] : [];
+      live.forEach((s) => assigned.add(s.id));
+      return { key: m.id || String(i), title: m.title, topics: m.topics, project: m.project, live };
+    });
+    const rest = sessions.filter((s) => !assigned.has(s.id));
+    if (rest.length) steps.push({ key: 'more-sessions', title: 'More live sessions', topics: [], live: rest });
+  } else {
+    steps = sessions.map((s) => ({ key: s.id, title: s.title, topics: sessionTopics(s), live: [s] }));
+  }
   const paymentId = apiClass.id;
   const activeEnrollment = myEnrollments?.data.find(e => e.classId === apiClass.id && e.status !== 'dropped');
   const isOwnClass = !!user && user.id === apiClass.instructor.id;
@@ -402,82 +418,101 @@ export default function ClassDetail() {
               </section>
 
               <section className="border-t border-gray-100 pt-10">
-                <div className="mb-5">
-                  <h2 className="text-lg font-semibold text-gray-900 tracking-tight mb-1">Course structure</h2>
-                  <p className="text-sm text-gray-500">
-                    {details.curriculumIntro || "Explore the course curriculum, projects, and live sessions"}
-                  </p>
+                <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900 tracking-tight mb-1">Course structure</h2>
+                    <p className="text-sm text-gray-500">
+                      {details.curriculumIntro || 'Explore the course curriculum, projects, and live sessions'}
+                    </p>
+                  </div>
+                  {sessions.length > 0 && (
+                    <span className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                      <ViewerTimeZoneSwitcher className="rounded-full" />
+                      {sessions.length} live session{sessions.length === 1 ? '' : 's'}
+                    </span>
+                  )}
                 </div>
 
-                {!modules.length ? (
+                {!steps.length ? (
                   <p className="text-sm text-gray-500">The instructor has not added the curriculum yet.</p>
                 ) : (
-                  <div className="space-y-3">
-                    {modules.map((module, index) => {
-                      const moduleSessions = (apiClass.schedule || [])
-                        .filter((s) => module.id && s.moduleId === module.id)
-                        .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+                  <ol className="relative ml-3 border-l border-gray-200">
+                    {steps.map((step, index) => {
+                      const live = step.live || [];
+                      const single = !curriculum.length ? live[0] : undefined;
                       return (
-                      <article key={module.id || index} className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
-                        <div className="flex items-start gap-3 mb-3">
-                          <span className="mt-0.5 inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-[11px] font-semibold text-white">
+                        <li key={step.key} className="relative pb-6 pl-8 last:pb-0">
+                          <span className="absolute -left-3 top-3.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[11px] font-semibold text-white ring-4 ring-white">
                             {index + 1}
                           </span>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="text-sm font-semibold text-gray-900 leading-snug">{module.title}</h3>
-                            {moduleSessions.length > 0 && (
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                {moduleSessions.length} live session{moduleSessions.length === 1 ? '' : 's'}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:pl-9">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">Topics</p>
-                            <ul className="space-y-1.5">
-                              {module.topics.map((topic, i) => (
-                                <li key={i} className="text-sm text-gray-600 leading-relaxed flex gap-2">
-                                  <span className="text-gray-300 mt-1.5">•</span>
-                                  <span>{topic}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">Project</p>
-                            <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 rounded-lg border border-gray-100 px-3 py-2.5">
-                              {module.project}
-                            </p>
-                          </div>
-                        </div>
-                        {moduleSessions.length > 0 && (
-                          <div className="mt-4 sm:pl-9 border-t border-gray-100 pt-4 space-y-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Live sessions</p>
-                            {moduleSessions.map((session) => {
-                              const start = new Date(session.startTime);
-                              const end = new Date(session.endTime);
-                              return (
-                                <div
-                                  key={session.id}
-                                  className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2.5"
-                                >
-                                  <p className="text-sm font-medium text-gray-900">{session.title}</p>
-                                  <p className="text-xs text-gray-500">
-                                    {t.day(start)}
-                                    {' · '}
-                                    {t.time(start)}
-                                    {' – '}
-                                    {t.time(end)}
+                          <article className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <h3 className="min-w-0 pt-0.5 text-sm font-semibold leading-snug text-gray-900">{step.title}</h3>
+                              {single ? (
+                                <div className="flex-shrink-0 text-right">
+                                  <p className="text-xs font-medium text-gray-800">{formatInZone(new Date(single.startTime), t.tz, 'date')}</p>
+                                  <p className="mt-0.5 text-xs text-gray-500">
+                                    {t.time(new Date(single.startTime))} – {formatInZone(new Date(single.endTime), t.tz, 'time', true)}
                                   </p>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </article>
-                    );})}
-                  </div>
+                              ) : (
+                                <span
+                                  className={`inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                                    live.length ? 'bg-[#f5f7fc] text-[#5b6fa3]' : 'bg-gray-100 text-gray-500'
+                                  }`}
+                                >
+                                  <Video className="h-3 w-3" />
+                                  {live.length ? `${live.length} live session${live.length === 1 ? '' : 's'}` : 'No live session'}
+                                </span>
+                              )}
+                            </div>
+
+                            {step.topics.length > 0 && (
+                              <ul className="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
+                                {step.topics.map((topic, i) => (
+                                  <li key={i} className="flex gap-2 text-sm leading-relaxed text-gray-600">
+                                    <span className="mt-1.5 text-gray-300">•</span>
+                                    <span>{topic}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+
+                            {step.project && (
+                              <div className="mt-4 flex gap-3 rounded-xl border border-[#e3e8f4] bg-[#f5f7fc] px-3.5 py-3">
+                                <FolderKanban className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#889dd1]" />
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#6f82b8]">Project</p>
+                                  <p className="mt-0.5 text-sm leading-relaxed text-gray-700">{step.project}</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {!single && live.length > 0 && (
+                              <div className="mt-4 space-y-2 border-t border-gray-100 pt-4">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Live sessions</p>
+                                {live.map((session) => {
+                                  const start = new Date(session.startTime);
+                                  const end = new Date(session.endTime);
+                                  return (
+                                    <div
+                                      key={session.id}
+                                      className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-2.5"
+                                    >
+                                      <p className="text-sm font-medium text-gray-900">{session.title}</p>
+                                      <p className="text-xs text-gray-500">
+                                        {t.day(start)} · {t.time(start)} – {formatInZone(end, t.tz, 'time', true)}
+                                      </p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </article>
+                        </li>
+                      );
+                    })}
+                  </ol>
                 )}
               </section>
 
@@ -554,7 +589,7 @@ export default function ClassDetail() {
                   <p className="text-sm text-gray-500 mt-1">Quick facts about this live class</p>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { icon: Signal, label: 'Level', value: apiClass.level },
                     { icon: Globe2, label: 'Language', value: apiClass.language || 'TBA' },
@@ -574,63 +609,6 @@ export default function ClassDetail() {
                   ))}
                 </div>
 
-                {!!apiClass.schedule?.length && (
-                  <div>
-                    <div className="flex items-baseline justify-between gap-3 mb-4">
-                      <div className="flex items-center gap-2">
-                        <Layers className="h-4 w-4 text-gray-400" />
-                        <h3 className="text-sm font-semibold text-gray-900">Session schedule</h3>
-                      </div>
-                      <span className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
-                        <ViewerTimeZoneSwitcher />
-                        {apiClass.schedule.length} session{apiClass.schedule.length === 1 ? '' : 's'}
-                      </span>
-                    </div>
-                    <ol className="relative space-y-0 border-l border-gray-200 ml-3">
-                      {apiClass.schedule.map((session, index) => {
-                        const start = new Date(session.startTime);
-                        const end = new Date(session.endTime);
-                        const dateLabel = formatInZone(start, t.tz, 'date');
-                        const timeLabel = `${t.time(start)} – ${formatInZone(end, t.tz, 'time', true)}`;
-                        const topics = (session.description || '')
-                          .split('\n')
-                          .map((t) => t.trim())
-                          .filter(Boolean);
-                        return (
-                          <li key={session.id} className="relative pl-6 pb-6 last:pb-0">
-                            <span className="absolute -left-[7px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-gray-900 ring-1 ring-gray-200" />
-                            <article className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
-                              <div className="flex flex-wrap items-start justify-between gap-2 mb-1">
-                                <div className="min-w-0">
-                                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">
-                                    Session {index + 1}
-                                  </p>
-                                  <h4 className="text-sm font-semibold text-gray-900 leading-snug">
-                                    {session.title}
-                                  </h4>
-                                </div>
-                                <div className="text-right flex-shrink-0">
-                                  <p className="text-xs font-medium text-gray-800">{dateLabel}</p>
-                                  <p className="text-xs text-gray-500 mt-0.5">{timeLabel}</p>
-                                </div>
-                              </div>
-                              {topics.length > 0 && (
-                                <ul className="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
-                                  {topics.map((topic, i) => (
-                                    <li key={i} className="flex gap-2 text-sm text-gray-600 leading-relaxed">
-                                      <span className="text-gray-300 mt-1.5">•</span>
-                                      <span>{topic}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </article>
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  </div>
-                )}
               </section>
 
               {!!apiClass.prerequisites?.length && (
