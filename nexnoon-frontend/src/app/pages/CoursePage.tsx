@@ -85,7 +85,7 @@ function ClassCard({
       </div>
 
       <div className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[#14110e]">
-        {full ? 'Join waitlist soon' : 'View class'}
+        {full ? 'Class full · Join the waitlist' : item.seatsLeft <= 5 ? `Only ${item.seatsLeft} left · View class` : 'View class'}
         <ArrowRight className="h-4 w-4" />
       </div>
     </button>

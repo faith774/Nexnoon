@@ -3,6 +3,7 @@ import { connectDB } from './config/db';
 import { ENV } from './config/env';
 import { startSessionReminders } from './utils/reminders';
 import { backfillClassTimeZones } from './utils/backfill';
+import { startWaitlistSweeper } from './utils/seats';
 
 function validateEnv() {
   if (ENV.NODE_ENV !== 'production') return;
@@ -29,6 +30,7 @@ const start = async () => {
       .then((n) => n && console.log(`Assigned a time zone to ${n} older class${n === 1 ? '' : 'es'}`))
       .catch((error) => console.error('Class time zone backfill failed:', error instanceof Error ? error.message : error));
     startSessionReminders();
+    startWaitlistSweeper();
     app.listen(ENV.PORT, () => {
       console.log(`Nexnon API running on http://localhost:${ENV.PORT}`);
       console.log(`  Health: http://localhost:${ENV.PORT}/health`);

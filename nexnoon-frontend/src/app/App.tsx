@@ -27,6 +27,7 @@ const Browse = lazy(() => import("@/app/pages/Browse"));
 const Categories = lazy(() => import("@/app/pages/Categories"));
 const CategoryDetail = lazy(() => import("@/app/pages/CategoryDetail"));
 const Certificate = lazy(() => import("@/app/pages/Certificate"));
+const CertificateView = lazy(() => import("@/app/pages/CertificateView"));
 const ClassDetail = lazy(() => import("@/app/pages/ClassDetail"));
 const ClassRoom = lazy(() => import("@/app/pages/ClassRoom"));
 const Contact = lazy(() => import("@/app/pages/Contact"));
@@ -36,6 +37,8 @@ const Earnings = lazy(() => import("@/app/pages/Earnings"));
 const EditClass = lazy(() => import("@/app/pages/EditClass"));
 const EnrollmentSuccess = lazy(() => import("@/app/pages/EnrollmentSuccess"));
 const ForgotPassword = lazy(() => import("@/app/pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("@/app/pages/ResetPassword"));
+const VerifyEmail = lazy(() => import("@/app/pages/VerifyEmail"));
 const ChangePassword = lazy(() => import("@/app/pages/ChangePassword"));
 const Help = lazy(() => import("@/app/pages/Help"));
 const InstructorDashboard = lazy(() => import("@/app/pages/InstructorDashboard"));
@@ -302,6 +305,10 @@ const siteRoutes: RouteObject[] = [
         element: <Suspense fallback={<LoadingFallback />}><CategoryDetail /></Suspense>,
       },
       {
+        path: "/certificates/:certificateId",
+        element: <Suspense fallback={<LoadingFallback />}><CertificateView /></Suspense>,
+      },
+      {
         path: "/certificate/:id",
         element: <Suspense fallback={<LoadingFallback />}><Certificate /></Suspense>,
       },
@@ -340,6 +347,14 @@ const siteRoutes: RouteObject[] = [
       {
         path: "/forgot-password",
         element: <Suspense fallback={<LoadingFallback />}><ForgotPassword /></Suspense>,
+      },
+      {
+        path: "/reset-password",
+        element: <Suspense fallback={<LoadingFallback />}><ResetPassword /></Suspense>,
+      },
+      {
+        path: "/verify-email",
+        element: <Suspense fallback={<LoadingFallback />}><VerifyEmail /></Suspense>,
       },
       {
         path: "/change-password",

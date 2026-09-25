@@ -1,219 +1,156 @@
-import BrandLoader from '../components/BrandLoader';
-import { formatInZone, getViewerTimeZone } from '@/lib/timezone';
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router';
-import { CheckCircle, Calendar, Clock, ArrowRight, Download } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router';
+import { ArrowRight, CalendarDays, CheckCircle2, Clock, LayoutDashboard, Mail, Video } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
-import { Button } from '@/app/components/ui/button';
-import confetti from 'canvas-confetti';
-import { classService } from '@/lib/api';
-import { ENV } from '@/config/env';
+import BrandLoader from '@/app/components/BrandLoader';
+import { btn } from '@/app/components/studio/ui';
+import { classService, enrollmentService, type EnrollmentStatus } from '@/lib/api';
+import { useTimeFormat } from '@/lib/timezone';
 import { classDetailUrl } from '@/lib/url';
 import type { Class } from '@/types/api';
 
 export default function EnrollmentSuccess() {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const [apiClass, setApiClass] = useState<Class | null>(null);
-  const [loading, setLoading] = useState(!!id);
-
-  const useRealDataOnly = !ENV.ENABLE_DEMO_MODE;
+  const fmt = useTimeFormat();
+  const [cls, setCls] = useState<Class | null>(null);
+  const [seat, setSeat] = useState<EnrollmentStatus | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) {
       setLoading(false);
       return;
     }
-    if (!useRealDataOnly) {
-      setLoading(false);
-      return;
-    }
-    classService
-      .getClass(id)
-      .then((data) => setApiClass(data))
-      .catch(() => setApiClass(null))
+    Promise.all([
+      classService.getClass(id).catch(() => null),
+      enrollmentService.status(id).catch(() => null),
+    ])
+      .then(([c, s]) => {
+        setCls(c);
+        setSeat(s);
+      })
       .finally(() => setLoading(false));
-  }, [id, useRealDataOnly]);
+  }, [id]);
 
-  const classData = apiClass ? { title: apiClass.title,
-    duration: `${apiClass.totalSessions} sessions`,
-    nextSession: apiClass.schedule?.[0]?.startTime ? formatInZone(apiClass.schedule[0].startTime, getViewerTimeZone(), 'datetime', true) : 'Not scheduled yet',
-  } : null;
+  const enrolled = seat?.enrollment?.status === 'active' || seat?.enrollment?.status === 'completed';
 
   useEffect(() => {
-    if (!loading && !classData && useRealDataOnly) navigate('/');
-  }, [loading, classData, useRealDataOnly, navigate]);
-
-  useEffect(() => {
-    // Trigger confetti animation
-    const duration = 3000;
-    const end = Date.now() + duration;
-
+    if (!enrolled) return;
+    const end = Date.now() + 2200;
+    const colors = ['#c45c26', '#14110e', '#e9b48f'];
     const frame = () => {
-      confetti({
-        particleCount: 2,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: ['#889dd1', '#7a8ec2', '#6a7eb2']
-      });
-      confetti({
-        particleCount: 2,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: ['#889dd1', '#7a8ec2', '#6a7eb2']
-      });
-
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
+      confetti({ particleCount: 2, angle: 60, spread: 55, origin: { x: 0 }, colors });
+      confetti({ particleCount: 2, angle: 120, spread: 55, origin: { x: 1 }, colors });
+      if (Date.now() < end) requestAnimationFrame(frame);
     };
-
     frame();
-  }, []);
+  }, [enrolled]);
+
+  const nextSession = useMemo(() => {
+    const now = Date.now();
+    return (cls?.schedule || [])
+      .filter((s) => new Date(s.endTime).getTime() > now)
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
+  }, [cls]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <BrandLoader />
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-[#f6f4f0]">
+        <BrandLoader />
       </div>
     );
   }
-  if (!classData) {
-    return null;
-  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
+    <div className="min-h-screen bg-[#f6f4f0] text-[#14110e]">
       <Header variant="light" />
-      
-      <main className="py-12">
-        <div className="w-[90vw] max-w-3xl mx-auto">
-          {/* Success Card */}
-          <div className="bg-white rounded-2xl border-2 border-[#889dd1]/20 shadow-xl overflow-hidden">
-            {/* Success Header */}
-            <div className="bg-gradient-to-r from-[#889dd1] to-[#7a8ec2] p-12 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full mb-6 shadow-lg">
-                <CheckCircle className="h-12 w-12 text-green-500" />
-              </div>
-              <h1 className="text-4xl font-bold text-white mb-3">Enrollment Successful!</h1>
-              <p className="text-xl text-white/90">Welcome to {classData.title}</p>
-            </div>
-
-            {/* Content */}
-            <div className="p-8 space-y-6">
-              {/* Confirmation Message */}
-              <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-                <p className="text-green-900 font-medium mb-2">
-                  🎉 You're all set! A confirmation email has been sent to your inbox.
-                </p>
-                <p className="text-green-800 text-sm">
-                  Check your email for class details, schedule, and access information.
-                </p>
-              </div>
-
-              {/* Class Details */}
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Calendar className="h-5 w-5 text-[#889dd1]" />
-                    <h3 className="font-semibold text-gray-900">Next Live Session</h3>
-                  </div>
-                  <p className="text-gray-700">{classData.nextSession}</p>
-                </div>
-
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Clock className="h-5 w-5 text-[#889dd1]" />
-                    <h3 className="font-semibold text-gray-900">Duration</h3>
-                  </div>
-                  <p className="text-gray-700">{classData.duration}</p>
-                </div>
-              </div>
-
-              {/* Next Steps */}
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4">What's Next?</h2>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-4 p-4 bg-white border-2 border-gray-100 rounded-xl transition-colors">
-                    <div className="w-8 h-8 bg-[#889dd1] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                      1
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Check Your Email</h3>
-                      <p className="text-sm text-gray-600">You'll receive class materials and a calendar invite</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4 p-4 bg-white border-2 border-gray-100 rounded-xl transition-colors">
-                    <div className="w-8 h-8 bg-[#889dd1] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                      2
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Join the Class Community</h3>
-                      <p className="text-sm text-gray-600">Connect with fellow students and your Nexnoon Expert</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4 p-4 bg-white border-2 border-gray-100 rounded-xl transition-colors">
-                    <div className="w-8 h-8 bg-[#889dd1] text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                      3
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">Prepare for First Session</h3>
-                      <p className="text-sm text-gray-600">Review pre-class materials in your dashboard</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Button
-                  onClick={() => navigate('/my-classes')}
-                  className="flex-1 bg-[#889dd1] hover:bg-[#7a8ec2] text-white py-4 text-lg font-semibold"
-                >
-                  Go to My Classes
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Button>
-                <Button
-                  onClick={() => id && navigate(classDetailUrl(id, apiClass?.title))}
-                  variant="outline"
-                  className="flex-1 py-4 text-lg font-semibold border-2"
-                >
-                  <Download className="h-5 w-5 mr-2" />
-                  Download Materials
-                </Button>
-              </div>
-
-              {/* Additional Resources */}
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mt-6">
-                <h3 className="font-semibold text-blue-900 mb-3">Need Help Getting Started?</h3>
-                <div className="space-y-2 text-sm text-blue-800">
-                  <p>• <a href="#" className="underline hover:no-underline">Download our mobile app</a> to access classes on the go</p>
-                  <p>• <a href="#" className="underline hover:no-underline">Join our Discord community</a> to connect with other students</p>
-                  <p>• <a href="#" className="underline hover:no-underline">Visit our Help Center</a> for technical support</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Support Footer */}
-          <div className="text-center mt-8">
-            <p className="text-gray-600">
-              Questions? Contact us at{' '}
-              <a href="mailto:support@nexnoon.com" className="text-[#889dd1] hover:underline font-medium">
-                support@nexnoon.com
-              </a>
+      <main className="mx-auto w-full max-w-2xl px-4 pb-20 pt-10 sm:px-6">
+        {!cls || !enrolled ? (
+          <div className="border border-[#e4dfd6] bg-white p-8 text-center">
+            <h1 className="font-serif text-2xl tracking-tight">We couldn't confirm this enrollment</h1>
+            <p className="mt-2 text-sm text-[#6b655c]">
+              If you just paid, give it a moment and check your classes. Nothing is charged twice.
             </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <Link to="/my-classes" className={btn.primary}>Go to my classes</Link>
+              {id ? <Link to={classDetailUrl(id, cls?.title)} className={btn.secondary}>Back to class</Link> : null}
+            </div>
           </div>
-        </div>
-      </main>
+        ) : (
+          <div className="border border-[#e4dfd6] bg-white">
+            <div className="border-b border-[#eee9e0] bg-[#fbeee6] px-6 py-8 text-center sm:px-10">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white text-emerald-600 shadow-sm">
+                <CheckCircle2 className="h-8 w-8" />
+              </span>
+              <p className="mt-4 text-[11px] uppercase tracking-[0.18em] text-[#c45c26]">You're enrolled</p>
+              <h1 className="mt-1 font-serif text-3xl tracking-tight">{cls.title}</h1>
+              <p className="mt-1 text-sm text-[#6b655c]">with {cls.instructor?.name || 'your instructor'}</p>
+            </div>
 
+            <div className="grid gap-px bg-[#eee9e0] sm:grid-cols-2">
+              <div className="bg-white p-5">
+                <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-[#8a847a]">
+                  <CalendarDays className="h-3.5 w-3.5" /> First live session
+                </p>
+                <p className="mt-1.5 text-sm font-medium">
+                  {nextSession ? fmt.dayTime(nextSession.startTime) : 'Schedule coming soon'}
+                </p>
+                {nextSession ? <p className="text-xs text-[#8a847a]">Your time zone: {fmt.tz}</p> : null}
+              </div>
+              <div className="bg-white p-5">
+                <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-[#8a847a]">
+                  <Clock className="h-3.5 w-3.5" /> Length
+                </p>
+                <p className="mt-1.5 text-sm font-medium">
+                  {cls.totalSessions} live session{cls.totalSessions === 1 ? '' : 's'}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 p-6 sm:p-8">
+              <h2 className="font-serif text-lg tracking-tight">What happens next</h2>
+              <ol className="space-y-3">
+                {[
+                  { icon: <Mail className="h-4 w-4" />, title: 'Confirmation email', text: 'We sent your receipt and class details to your inbox.' },
+                  { icon: <LayoutDashboard className="h-4 w-4" />, title: 'Everything lives in My classes', text: 'Your schedule, materials, assignments and certificate are all in one place.' },
+                  {
+                    icon: <Video className="h-4 w-4" />,
+                    title: 'Join from your dashboard',
+                    text: "The Join button opens shortly before each session starts. We'll email you a reminder too.",
+                  },
+                ].map((s) => (
+                  <li key={s.title} className="flex gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-[#fbeee6] text-[#c45c26]">{s.icon}</span>
+                    <div>
+                      <p className="text-sm font-medium">{s.title}</p>
+                      <p className="text-sm text-[#6b655c]">{s.text}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+
+              <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+                <Link to="/my-classes" className={`${btn.primary} flex-1 py-3`}>
+                  Go to my classes <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link to={`/classroom/${cls.id}`} className={`${btn.secondary} flex-1 py-3`}>
+                  Open classroom
+                </Link>
+              </div>
+              {seat?.refundWindowDays && seat.price > 0 ? (
+                <p className="text-center text-xs text-[#8a847a]">
+                  Changed your mind? You can leave for a full refund within {seat.refundWindowDays} days, as long as the first session hasn't started.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        )}
+        <p className="mt-6 text-center text-sm text-[#6b655c]">
+          Questions? <a href="mailto:support@nexnoon.com" className="font-medium text-[#c45c26] hover:underline">support@nexnoon.com</a>
+        </p>
+      </main>
       <Footer />
     </div>
   );

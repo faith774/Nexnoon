@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 import { CourseModel, slugify, toCourseDto } from '../models/Course';
-import { ClassModel } from '../models/Class';
+import { ClassModel, ClassScheduleModel } from '../models/Class';
+import { notEndedFilter } from '../utils/seats';
 import { getMaxClassSeats } from '../models/PlatformSettings';
 import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
 
@@ -58,8 +59,9 @@ function normalizePricing(p?: { minPrice?: number | null; maxPrice?: number | nu
 }
 
 function classCardDto(cls: any, seatCap: number) {
-  const max = cls.maxStudents || seatCap;
+  const max = seatCap;
   const enrolled = cls.enrolledStudents || 0;
+  const taken = enrolled + (cls.heldSeats || 0);
   return {
     id: String(cls._id),
     title: cls.title,
@@ -76,7 +78,7 @@ function classCardDto(cls: any, seatCap: number) {
     startDate: cls.startDate,
     enrolledStudents: enrolled,
     maxStudents: max,
-    seatsLeft: Math.max(0, max - enrolled),
+    seatsLeft: Math.max(0, max - taken),
     fillRate: max > 0 ? Math.round((enrolled / max) * 100) : 0,
     rating: cls.rating || 0,
     instructor: cls.instructor
@@ -117,6 +119,7 @@ router.get('/by-slug/:slug', async (req, res) => {
   const classes = await ClassModel.find({
     courseId: course._id,
     status: 'published',
+    ...(await notEndedFilter()),
   })
     .sort({ startDate: 1, createdAt: -1 })
     .lean();
@@ -140,11 +143,30 @@ router.get('/by-slug/:slug', async (req, res) => {
     });
   }
 
+  // Best fit first: classes with seats, then soonest upcoming session.
+  const now = new Date();
+  const nextStart = new Map<string, number>();
+  const firstUpcoming = await ClassScheduleModel.aggregate([
+    { $match: { classId: { $in: filtered.map((c: any) => c._id) }, status: { $ne: 'cancelled' }, endTime: { $gt: now } } },
+    { $group: { _id: '$classId', start: { $min: '$startTime' } } },
+  ]);
+  for (const row of firstUpcoming) nextStart.set(String(row._id), new Date(row.start).getTime());
+  const cards = filtered
+    .map((c: any) => ({ ...classCardDto(c, seatCap), startDate: nextStart.has(String(c._id)) ? new Date(nextStart.get(String(c._id))!) : c.startDate }))
+    .sort((a, b) => {
+      const af = a.seatsLeft > 0 ? 0 : 1;
+      const bf = b.seatsLeft > 0 ? 0 : 1;
+      if (af !== bf) return af - bf;
+      const at = a.startDate ? new Date(a.startDate).getTime() : Infinity;
+      const bt = b.startDate ? new Date(b.startDate).getTime() : Infinity;
+      return at - bt;
+    });
+
   return res.json({
     success: true,
     data: {
       course: toCourseDto(course),
-      classes: filtered.map((c) => classCardDto(c, seatCap)),
+      classes: cards,
       seatCap,
     },
   });

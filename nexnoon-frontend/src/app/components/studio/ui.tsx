@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
@@ -235,8 +235,21 @@ export function SegmentedTabs<T extends string>({
   onChange: (v: NoInfer<T>) => void;
   tabs: { id: NoInfer<T>; label: string; count?: number }[];
 }) {
+  const strip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = strip.current;
+    const tab = el?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!el || !tab) return;
+    if (tab.offsetLeft < el.scrollLeft || tab.offsetLeft + tab.offsetWidth > el.scrollLeft + el.clientWidth) {
+      el.scrollTo({ left: tab.offsetLeft - (el.clientWidth - tab.offsetWidth) / 2, behavior: 'smooth' });
+    }
+  }, [value]);
   return (
-    <div role="tablist" className="flex gap-5 overflow-x-auto border-b border-[#e4dfd6]">
+    <div
+      ref={strip}
+      role="tablist"
+      className="relative flex gap-5 overflow-x-auto border-b border-[#e4dfd6] [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_90%,transparent)] md:[mask-image:none]"
+    >
       {tabs.map((t) => {
         const active = t.id === value;
         return (
@@ -255,6 +268,7 @@ export function SegmentedTabs<T extends string>({
           </button>
         );
       })}
+      <span aria-hidden className="w-8 shrink-0 md:hidden" />
     </div>
   );
 }

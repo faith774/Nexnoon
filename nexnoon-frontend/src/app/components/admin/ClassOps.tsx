@@ -695,6 +695,7 @@ export function CancelClassModal({ open, onClose, op }: { open: boolean; onClose
   const run = useAdminAction();
   const [reason, setReason] = useState('');
   const [notify, setNotify] = useState(true);
+  const [refund, setRefund] = useState(true);
   const [busy, setBusy] = useState(false);
   const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
@@ -702,6 +703,7 @@ export function CancelClassModal({ open, onClose, op }: { open: boolean; onClose
     if (open) {
       setReason('');
       setNotify(true);
+      setRefund(true);
     }
   }
 
@@ -711,7 +713,7 @@ export function CancelClassModal({ open, onClose, op }: { open: boolean; onClose
   async function submit() {
     if (!op || reason.trim().length < 3) return;
     setBusy(true);
-    const res = await run(() => apiClient.post(`/classes/${op.id}/cancel`, { reason: reason.trim(), notifyLearners: notify }));
+    const res = await run(() => apiClient.post(`/classes/${op.id}/cancel`, { reason: reason.trim(), notifyLearners: notify, refundLearners: paid.length > 0 && refund }));
     setBusy(false);
     if (res) onClose();
   }
@@ -749,7 +751,7 @@ export function CancelClassModal({ open, onClose, op }: { open: boolean; onClose
             </p>
             {paid.length ? (
               <p className="font-medium">
-                {paid.length} paid enrollment{paid.length === 1 ? '' : 's'} ({money(paidTotal, op?.currency)}). Refunds are not automatic; issue them in Stripe.
+                {paid.length} paid enrollment{paid.length === 1 ? '' : 's'} ({money(paidTotal, op?.currency)}).
               </p>
             ) : null}
           </div>
@@ -767,6 +769,12 @@ export function CancelClassModal({ open, onClose, op }: { open: boolean; onClose
           <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
           Email and notify enrolled learners
         </label>
+        {paid.length ? (
+          <label className="flex items-center gap-2 text-sm text-[#0b1220]">
+            <input type="checkbox" checked={refund} onChange={(e) => setRefund(e.target.checked)} />
+            Refund all {paid.length} payment{paid.length === 1 ? '' : 's'} in full ({money(paidTotal, op?.currency)})
+          </label>
+        ) : null}
       </div>
     </Modal>
   );

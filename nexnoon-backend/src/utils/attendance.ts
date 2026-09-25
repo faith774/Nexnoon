@@ -67,24 +67,33 @@ export async function buildAttendanceMatrix(cls: { _id: unknown; title: string; 
 export const LATE_AFTER_START_MS = 10 * 60_000;
 
 /** Adds the session to the enrollment's attended list and recomputes progress. Never throws. */
+async function recomputeProgress(enrollmentId: string, classId: string) {
+  const [enrollment, totalSessions] = await Promise.all([
+    EnrollmentModel.findById(enrollmentId),
+    ClassScheduleModel.countDocuments({ classId, status: { $ne: 'cancelled' } }),
+  ]);
+  if (!enrollment || totalSessions === 0) return;
+  const attended = enrollment.attendedSessions.length;
+  enrollment.progress = Math.min(100, Math.round((attended / totalSessions) * 100));
+  if (attended >= totalSessions && enrollment.status === 'active') {
+    enrollment.status = 'completed';
+    enrollment.completedAt = new Date();
+  }
+  await enrollment.save();
+}
+
 export async function creditSessionAttendance(enrollmentId: string, classId: string, sessionId: string) {
   try {
     await EnrollmentModel.updateOne({ _id: enrollmentId }, { $addToSet: { attendedSessions: sessionId } });
-    const [enrollment, totalSessions] = await Promise.all([
-      EnrollmentModel.findById(enrollmentId),
-      ClassScheduleModel.countDocuments({ classId, status: { $ne: 'cancelled' } }),
-    ]);
-    if (!enrollment || totalSessions === 0) return;
-    const attended = enrollment.attendedSessions.length;
-    enrollment.progress = Math.min(100, Math.round((attended / totalSessions) * 100));
-    if (attended >= totalSessions && enrollment.status === 'active') {
-      enrollment.status = 'completed';
-      enrollment.completedAt = new Date();
-    }
-    await enrollment.save();
+    await recomputeProgress(enrollmentId, classId);
   } catch (error) {
     console.error('Failed to record session attendance:', error);
   }
+}
+
+async function uncreditSessionAttendance(enrollmentId: string, classId: string, sessionId: string) {
+  await EnrollmentModel.updateOne({ _id: enrollmentId }, { $pull: { attendedSessions: sessionId } });
+  await recomputeProgress(enrollmentId, classId);
 }
 
 /**
@@ -162,5 +171,10 @@ export async function markAttendance(
       createdByMark: true,
     });
   }
+  const record = await AttendanceRecordModel.findOne({ sessionId, userId }).lean();
+  const joined = !!record && !record.pendingJoin && (!!record.sdkJoinedAt || !!record.zoomJoinedAt || !record.createdByMark);
+  const counts = record?.manualStatus ? record.manualStatus === 'present' || record.manualStatus === 'late' : joined;
+  if (counts) await creditSessionAttendance(String(enrollment._id), classId, sessionId);
+  else await uncreditSessionAttendance(String(enrollment._id), classId, sessionId);
   return { ok: true, sessionTitle: session.title };
 }

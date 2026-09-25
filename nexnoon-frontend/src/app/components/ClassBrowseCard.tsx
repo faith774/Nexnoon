@@ -1,4 +1,4 @@
-import { Clock, Heart, MapPin, Radio, Users } from 'lucide-react';
+import { Clock, MapPin, Radio, Users } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { classDetailUrl } from '@/lib/url';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
@@ -77,14 +77,7 @@ export default function ClassBrowseCard({
             <Radio className="h-3 w-3 text-[#c45c26]" />
             Live
           </span>
-          <button
-            type="button"
-            onClick={(e) => e.stopPropagation()}
-            className="p-2 rounded-full bg-white/85 backdrop-blur-sm hover:bg-white transition-colors"
-            aria-label="Save class"
-          >
-            <Heart className="h-4 w-4 text-[#3d3933] hover:text-rose-500 transition-colors" />
-          </button>
+
         </div>
       </div>
 

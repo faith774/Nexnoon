@@ -1,15 +1,15 @@
 import BrandLoader from '@/app/components/BrandLoader';
 import { useState, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-import { Search as SearchIcon, SlidersHorizontal, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { ArrowRight, BookOpen, Search as SearchIcon, SlidersHorizontal, X } from 'lucide-react';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import ClassBrowseCard from '@/app/components/ClassBrowseCard';
 import ClassFiltersSheet from '@/app/components/ClassFiltersSheet';
 import ClassSearchAutocomplete from '@/app/components/ClassSearchAutocomplete';
 import { Button } from '@/app/components/ui/button';
-import { classService } from '@/lib/api';
-import type { Class } from '@/types/api';
+import { classService, courseService } from '@/lib/api';
+import type { Class, Course } from '@/types/api';
 import {
   BROWSE_CATEGORIES,
   DEFAULT_CLASS_FILTERS,
@@ -87,6 +87,23 @@ export default function Search() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [apiResults, setApiResults] = useState<ClassBrowseCardData[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [catalog, setCatalog] = useState<Course[]>([]);
+
+  useEffect(() => {
+    courseService.getCatalog().then(setCatalog).catch(() => setCatalog([]));
+  }, []);
+
+  const matchingCourses = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return catalog
+      .filter((c) =>
+        [c.title, c.category, ...(c.languageOfferings || []).map((o) => o.label)]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(q))
+      )
+      .slice(0, 4);
+  }, [catalog, query]);
 
   useEffect(() => {
     setSearchTerm(query);
@@ -240,6 +257,34 @@ export default function Search() {
         {/* Section 3 — Results */}
         <section className="flex-1 bg-[#f7f5f1]">
           <div className="w-[90vw] max-w-[1400px] mx-auto py-10 md:py-12">
+            {matchingCourses.length > 0 ? (
+              <div className="mb-10">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a847a] mb-3">
+                  Courses
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {matchingCourses.map((course) => (
+                    <Link
+                      key={course.id}
+                      to={`/courses/${course.slug}`}
+                      className="group flex items-center gap-4 border border-[#e4dfd6] bg-white p-4 transition hover:border-[#14110e]/40"
+                    >
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-[#fbeee6] text-[#c45c26]">
+                        <BookOpen className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{course.title}</span>
+                        <span className="block truncate text-xs text-[#8a847a]">
+                          {(course.languageOfferings || []).filter((o) => o.status !== 'inactive').map((o) => o.label).join(' · ') || course.category || 'Compare every class in one place'}
+                        </span>
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-[#8a847a] transition group-hover:translate-x-0.5 group-hover:text-[#14110e]" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a847a] mb-1">

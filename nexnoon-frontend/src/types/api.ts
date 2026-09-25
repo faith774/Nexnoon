@@ -123,6 +123,7 @@ export interface Class {
   details?: ClassDetails;
   language?: string;
   courseId?: string;
+  course?: { title: string; slug: string } | null;
   languageOfferingId?: string;
   maxStudents?: number;
   learningOutcomes?: string[];
@@ -212,6 +213,13 @@ export interface AssignmentAnswer {
   content?: string;
   attachmentUrl?: string;
   submittedAt: string;
+  grade?: {
+    score: number;
+    maxScore: number;
+    feedback?: string;
+    gradedAt: string;
+    gradedByName?: string;
+  };
 }
 
 export interface CreateClassRequest {

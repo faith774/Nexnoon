@@ -12,6 +12,7 @@ import {
   Pencil,
   Play,
   FileText,
+  Search,
   Clock,
   UserPlus,
   ShieldCheck,
@@ -652,6 +653,56 @@ function LearnerSafetyNotice({ classId }: { classId: string }) {
   );
 }
 
+function LearnerMaterials({ items }: { items: string[] }) {
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const shown = q ? items.filter((item) => item.toLowerCase().includes(q)) : items;
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-[#8a847a]">{items.length} file{items.length === 1 ? '' : 's'} from your instructor</p>
+        {items.length > 4 ? (
+          <label className="flex h-9 w-full max-w-xs items-center gap-2 border border-[#d5cfc4] bg-white px-2.5">
+            <Search className="h-3.5 w-3.5 text-[#b5aea3]" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search materials"
+              className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#b5aea3]"
+            />
+          </label>
+        ) : null}
+      </div>
+      {shown.length ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {shown.map((item) => (
+            <FileAttachment key={item} url={item} variant="card" />
+          ))}
+        </div>
+      ) : (
+        <p className="border border-dashed border-[#ddd6ca] py-8 text-center text-sm text-[#6b655c]">No materials match “{query}”.</p>
+      )}
+    </div>
+  );
+}
+
+function LearnerCertificateLink({ classId }: { classId: string }) {
+  const [certId, setCertId] = useState<string | null>(null);
+  useEffect(() => {
+    apiClient
+      .get(`/enrollments/certificates/class/${classId}`)
+      .then((res) => setCertId(res.data.data?.certificateId || null))
+      .catch(() => setCertId(null));
+  }, [classId]);
+  if (!certId) return <p className="text-sm text-[#6b655c]">Preparing your certificate…</p>;
+  return (
+    <Link className="inline-flex items-center gap-2 text-sm font-medium text-[#c45c26] underline" to={`/certificates/${certId}`}>
+      <CheckCircle2 className="h-4 w-4" />
+      Open your certificate
+    </Link>
+  );
+}
+
 export default function BackendClassroom({ view }: { view: View }) {
   const { id } = useParams();
   const [params] = useSearchParams();
@@ -730,8 +781,6 @@ export default function BackendClassroom({ view }: { view: View }) {
         );
 
   const recordingUrl = safeUrl(session?.recordingUrl);
-  const certificateUrl =
-    enrollment?.status === 'completed' ? safeUrl(enrollment.certificateUrl) : undefined;
   const activeRoute = activeRouteByView[view];
   const nextUpcoming = sessions.find(
     (s) => s.status !== 'cancelled' && new Date(s.endTime).getTime() > now
@@ -1047,6 +1096,29 @@ export default function BackendClassroom({ view }: { view: View }) {
                 </aside>
               </div>
 
+              {!canTeach ? (
+                <div className="mt-8 grid gap-3 border-t border-[#eee9e0] pt-6 sm:grid-cols-2">
+                  <Link to={`/materials/${classId}`} className="flex items-center justify-between gap-3 border border-[#e4dfd6] bg-[#faf8f5] px-4 py-3.5 transition-colors hover:border-[#14110e]/40">
+                    <span>
+                      <span className="block text-[11px] uppercase tracking-[0.14em] text-[#8a847a]">Materials</span>
+                      <span className="mt-0.5 block text-sm font-medium">{cls.materials?.length || 0} shared file{(cls.materials?.length || 0) === 1 ? '' : 's'}</span>
+                    </span>
+                    <FileText className="h-4 w-4 text-[#c45c26]" />
+                  </Link>
+                  <Link to={`/assignments/${classId}`} className="flex items-center justify-between gap-3 border border-[#e4dfd6] bg-[#faf8f5] px-4 py-3.5 transition-colors hover:border-[#14110e]/40">
+                    <span>
+                      <span className="block text-[11px] uppercase tracking-[0.14em] text-[#8a847a]">Assignments</span>
+                      <span className="mt-0.5 block text-sm font-medium">
+                        {cls.assignments?.length
+                          ? `${Math.max(0, (cls.assignments?.length || 0) - mySubmissions.length)} still to submit`
+                          : 'None yet'}
+                      </span>
+                    </span>
+                    <ClipboardList className="h-4 w-4 text-[#c45c26]" />
+                  </Link>
+                </div>
+              ) : null}
+
               <div className="border-t border-[#eee9e0] mt-8 pt-6">
                 <h2 className="font-serif text-xl text-[#14110e] mb-2">About this class</h2>
                 <p className="whitespace-pre-line text-[#3d3933] text-sm leading-relaxed max-w-3xl">
@@ -1108,6 +1180,8 @@ export default function BackendClassroom({ view }: { view: View }) {
                             <td className="px-3 py-3">
                               {l.certificateUrl || l.status === 'completed' ? (
                                 <span className="text-emerald-700 text-xs font-medium">Issued</span>
+                              ) : !isLead ? (
+                                <span className="text-xs text-[#8a847a]">Lead issues</span>
                               ) : (
                                 <button
                                   type="button"
@@ -1153,11 +1227,7 @@ export default function BackendClassroom({ view }: { view: View }) {
                 No materials have been added by the instructor yet.
               </p>
             ) : (
-              <div className="space-y-2">
-                {cls.materials.map((item, index) => (
-                  <FileAttachment key={index} url={item} />
-                ))}
-              </div>
+              <LearnerMaterials items={cls.materials} />
             )}
           </section>
         )}
@@ -1198,14 +1268,21 @@ export default function BackendClassroom({ view }: { view: View }) {
             {recordingUrl ? (
               <>
                 <h3 className="font-serif text-xl mb-4">{session?.title}</h3>
-                <video className="w-full bg-black aspect-video" controls src={recordingUrl} />
+                {/\.(mp4|webm|mov)(\?|$)/i.test(recordingUrl) ? (
+                  <video className="w-full bg-black aspect-video" controls src={recordingUrl} />
+                ) : (
+                  <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 bg-[#14110e] px-6 text-center text-white">
+                    <Play className="h-10 w-10 opacity-80" />
+                    <p className="text-sm text-white/70">This recording plays on Zoom. It opens in a new tab.</p>
+                  </div>
+                )}
                 <a
-                  className="underline inline-block mt-4 text-sm"
+                  className="mt-4 inline-flex items-center gap-1.5 bg-[#14110e] px-4 py-2 text-sm text-white hover:bg-black/80"
                   href={recordingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Open recording
+                  <Play className="h-3.5 w-3.5" /> Watch recording
                 </a>
               </>
             ) : (
@@ -1338,24 +1415,15 @@ export default function BackendClassroom({ view }: { view: View }) {
 
             {!canTeach && (
               <div className="border border-[#e4dfd6] bg-[#faf8f5] p-5">
-                {certificateUrl ? (
-                  <a
-                    className="inline-flex items-center gap-2 text-sm font-medium text-[#c45c26] underline"
-                    href={certificateUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    Open your certificate
-                  </a>
+                {enrollment?.status === 'completed' ? (
+                  <LearnerCertificateLink classId={classId!} />
                 ) : (
                   <p className="text-sm text-[#6b655c]">
-                    No certificate has been issued for this enrollment yet.
+                    Your certificate unlocks when you complete the class.
                     {enrollment && (
                       <span>
                         {' '}
-                        Current progress: <strong>{enrollment.progress}%</strong> · status{' '}
-                        <strong className="capitalize">{enrollment.status}</strong>.
+                        Current progress: <strong>{enrollment.progress}%</strong>.
                       </span>
                     )}
                   </p>
@@ -1385,6 +1453,8 @@ export default function BackendClassroom({ view }: { view: View }) {
                           <span className="text-emerald-700 text-xs font-medium inline-flex items-center gap-1">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Issued
                           </span>
+                        ) : !isLead ? (
+                          <span className="text-xs text-[#8a847a]">The lead instructor issues certificates</span>
                         ) : (
                           <button
                             type="button"

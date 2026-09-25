@@ -18,7 +18,7 @@ export async function notifyClassSessionStarted(params: {
   sessionTitle: string;
 }): Promise<void> {
   const { classId, classTitle, sessionId, sessionTitle } = params;
-  const enrollments = await EnrollmentModel.find({ classId, status: 'active' });
+  const enrollments = await EnrollmentModel.find({ classId, status: { $in: ['active', 'completed'] } });
   if (!enrollments.length) return;
 
   await NotificationModel.insertMany(
@@ -38,7 +38,7 @@ export async function notifyClassSessionStarted(params: {
 }
 
 async function learnerContacts(classId: string) {
-  const enrollments = await EnrollmentModel.find({ classId, status: 'active' })
+  const enrollments = await EnrollmentModel.find({ classId, status: { $in: ['active', 'completed'] } })
     .populate('userId', 'fullName email timezone emailPrefs')
     .lean();
   return enrollments

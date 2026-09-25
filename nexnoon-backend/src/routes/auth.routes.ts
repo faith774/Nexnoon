@@ -452,6 +452,9 @@ router.post('/password/reset/confirm', async (req, res) => {
   if (!token || !newPassword) {
     return res.status(400).json({ success: false, message: 'Invalid request' });
   }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+  }
 
   const user = await User.findOne({
     resetPasswordToken: token,

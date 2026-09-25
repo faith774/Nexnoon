@@ -8,7 +8,7 @@ import Footer from '@/app/components/Footer';
 import LiveClasses from '@/app/components/LiveClasses';
 import BackendState from '@/app/components/BackendState';
 import { CountdownTimer } from '@/app/components/CountdownTimer';
-import { classService, getErrorMessage } from '@/lib/api';
+import { classService, enrollmentService, getErrorMessage, type EnrollmentStatus } from '@/lib/api';
 import { useBackendData } from '@/hooks/useBackendData';
 import { classDetailUrl, slugify } from '@/lib/url';
 import { resolvePreviewMedia } from '@/lib/previewMedia';
@@ -33,6 +33,13 @@ export default function ClassDetail() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [seat, setSeat] = useState<EnrollmentStatus | null>(null);
+  useEffect(() => {
+    let active = true;
+    setSeat(null);
+    if (id) enrollmentService.status(id).then((s) => { if (active) setSeat(s); }).catch(() => {});
+    return () => { active = false; };
+  }, [id, isAuthenticated]);
   useEffect(() => { let active = true; setReviews([]); setReviewError(false); if (id) classService.getClassReviews(id, { pageSize: 100 }).then(r => { if (active) setReviews(r.data); }).catch(() => { if (active) setReviewError(true); }); return () => { active = false; }; }, [id]);
   const relatedCoursesRef = useRef<HTMLDivElement>(null);
   const videoCardRef = useRef<HTMLDivElement>(null);
@@ -136,13 +143,23 @@ export default function ClassDetail() {
           <div className="absolute inset-0 bg-gradient-to-br from-black/75 via-black/60 to-black/45" />
 
           <div className="w-[90vw] mx-auto py-6 relative z-10">
-            <button
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-1.5 text-white/70 hover:text-white transition-colors mb-5 text-xs"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Back to courses
-            </button>
+            {apiClass.course ? (
+              <Link
+                to={`/courses/${apiClass.course.slug}`}
+                className="inline-flex items-center gap-1.5 text-white/70 hover:text-white transition-colors mb-5 text-xs"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                All {apiClass.course.title} classes
+              </Link>
+            ) : (
+              <button
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center gap-1.5 text-white/70 hover:text-white transition-colors mb-5 text-xs"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back
+              </button>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-10 items-start">
               <div className="lg:col-span-2 max-w-2xl">
@@ -254,14 +271,14 @@ export default function ClassDetail() {
                         )}
                       </div>
 
-                      {isOwnClass ? (
+                      {isOwnClass || seat?.teaches ? (
                         <Button
-                          onClick={() => navigate(`/edit-class/${apiClass.id}`)}
+                          onClick={() => navigate(`/classroom/${apiClass.id}`)}
                           className="w-full bg-gray-900 hover:bg-gray-800 text-white h-10 rounded-lg text-sm font-medium mb-3"
                         >
-                          Manage This Class
+                          Open your classroom
                         </Button>
-                      ) : activeEnrollment ? (
+                      ) : activeEnrollment || (seat?.enrollment && seat.enrollment.status !== 'dropped') ? (
                         <Button
                           onClick={() => navigate(`/classroom/${apiClass.id}`)}
                           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-10 rounded-lg text-sm font-medium mb-3"
@@ -269,14 +286,40 @@ export default function ClassDetail() {
                           <CheckCircle2 className="h-4 w-4 mr-1.5" />
                           Go to Classroom
                         </Button>
+                      ) : seat && !seat.open ? (
+                        <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-600">
+                          <p className="font-semibold text-gray-900">Enrollment closed</p>
+                          {seat.closedReason}
+                        </div>
+                      ) : seat?.waitlist?.status === 'offered' ? (
+                        <Button
+                          onClick={() => navigate(`/payment/${paymentId}`)}
+                          className="w-full bg-[#c45c26] hover:bg-[#a94d1f] text-white h-10 rounded-lg text-sm font-medium mb-3"
+                        >
+                          Claim your held seat
+                        </Button>
+                      ) : seat?.full ? (
+                        <>
+                          <Button
+                            onClick={() => navigate(`/payment/${paymentId}`)}
+                            variant="outline"
+                            className="w-full h-10 rounded-lg text-sm font-medium mb-1.5"
+                          >
+                            {seat.waitlist?.status === 'waiting' ? `On the waitlist · #${seat.waitlist.position ?? '—'}` : 'Class full · Join waitlist'}
+                          </Button>
+                          <p className="mb-3 text-center text-[11px] text-gray-500">We hold the next free seat for you for 24 hours.</p>
+                        </>
                       ) : (
                         <Button
                           onClick={() => navigate(`/payment/${paymentId}`)}
                           className="w-full bg-gray-900 hover:bg-gray-800 text-white h-10 rounded-lg text-sm font-medium mb-3"
                         >
-                          Enroll Now
+                          {seat?.enrollment?.status === 'dropped' ? 'Rejoin class' : classData.price > 0 ? 'Enroll Now' : 'Join for free'}
                         </Button>
                       )}
+                      {seat && seat.open && !seat.full && seat.seatsLeft <= 5 && !activeEnrollment && !seat.enrollment ? (
+                        <p className="-mt-1.5 mb-3 text-center text-[11px] font-medium text-[#c45c26]">Only {seat.seatsLeft} seat{seat.seatsLeft === 1 ? '' : 's'} left</p>
+                      ) : null}
 
                       <div className="border-t border-gray-100 pt-3 mt-1">
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Class details</p>
@@ -635,10 +678,7 @@ export default function ClassDetail() {
                 <h2 className="text-lg font-semibold text-gray-900 tracking-tight mb-4">Student reviews</h2>
 
                 {isAuthenticated &&
-                user?.role === 'student' &&
-                (myEnrollments?.data || []).some(
-                  (e) => String(e.classId) === String(id) && e.status !== 'dropped'
-                ) &&
+                seat?.canReview &&
                 !reviews.some((r) => String(r.userId) === String(user.id)) ? (
                   <form
                     className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3"

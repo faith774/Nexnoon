@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { isValidObjectId } from 'mongoose';
 import { z } from 'zod';
 import { ReviewModel } from '../models/Review';
 import { ClassModel } from '../models/Class';
@@ -6,14 +7,22 @@ import { User } from '../models/User';
 import { EnrollmentModel } from '../models/Enrollment';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { recomputeClassRating } from '../utils/reviews';
+import { classTimeline } from '../utils/seats';
 
 const router = Router();
 
 const createReviewSchema = z.object({
   classId: z.string(),
-  rating: z.number().min(1).max(5),
-  comment: z.string().optional(),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().trim().max(2000).optional(),
 });
+
+const updateReviewSchema = z
+  .object({
+    rating: z.number().int().min(1).max(5).optional(),
+    comment: z.string().trim().max(2000).optional(),
+  })
+  .refine((v) => v.rating !== undefined || v.comment !== undefined, 'Nothing to update');
 
 router.post('/', requireAuth, async (req: AuthRequest, res) => {
   const parsed = createReviewSchema.safeParse(req.body);
@@ -26,6 +35,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
   }
 
   const { classId, rating, comment } = parsed.data;
+  if (!isValidObjectId(classId)) return res.status(400).json({ success: false, message: 'Invalid class ID' });
 
   const cls = await ClassModel.findById(classId);
   if (!cls) {
@@ -39,6 +49,9 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
   });
   if (!enrolled) {
     return res.status(403).json({ success: false, message: 'Only enrolled learners can leave a review' });
+  }
+  if (enrolled.status !== 'completed' && !(await classTimeline(cls)).ended) {
+    return res.status(409).json({ success: false, message: 'You can review this class once it has finished.' });
   }
 
   const existing = await ReviewModel.findOne({ classId, userId: req.user!.id });
@@ -67,6 +80,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.patch('/:id', requireAuth, async (req: AuthRequest, res) => {
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid review ID' });
   const review = await ReviewModel.findById(req.params.id);
   if (!review) {
     return res.status(404).json({ success: false, message: 'Review not found' });
@@ -75,7 +89,11 @@ router.patch('/:id', requireAuth, async (req: AuthRequest, res) => {
     return res.status(403).json({ success: false, message: 'Forbidden' });
   }
 
-  const { rating, comment } = req.body as { rating?: number; comment?: string };
+  const parsed = updateReviewSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: parsed.error.issues[0]?.message || 'Invalid review' });
+  }
+  const { rating, comment } = parsed.data;
   if (rating !== undefined) review.rating = rating;
   if (comment !== undefined) review.comment = comment;
   await review.save();
@@ -89,6 +107,7 @@ router.patch('/:id', requireAuth, async (req: AuthRequest, res) => {
 });
 
 router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
+  if (!isValidObjectId(req.params.id)) return res.status(400).json({ success: false, message: 'Invalid review ID' });
   const review = await ReviewModel.findById(req.params.id);
   if (!review) {
     return res.status(404).json({ success: false, message: 'Review not found' });

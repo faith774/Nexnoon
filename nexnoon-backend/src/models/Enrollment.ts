@@ -9,6 +9,10 @@ export interface IEnrollment extends Document {
   enrolledAt: Date;
   completedAt?: Date;
   certificateUrl?: string;
+  /** Public id used on the certificate verification page. */
+  certificateId?: string;
+  certificateIssuedAt?: Date;
+  droppedAt?: Date;
 }
 
 const EnrollmentSchema = new Schema<IEnrollment>(
@@ -25,6 +29,9 @@ const EnrollmentSchema = new Schema<IEnrollment>(
     enrolledAt: { type: Date, default: Date.now },
     completedAt: { type: Date },
     certificateUrl: { type: String },
+    certificateId: { type: String, unique: true, sparse: true },
+    certificateIssuedAt: { type: Date },
+    droppedAt: { type: Date },
   },
   { timestamps: true }
 );

@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { WaitlistModel } from '../models/Waitlist';
+import { offerNextSeats } from '../utils/seats';
 import { z } from 'zod';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { ClassModel } from '../models/Class';
@@ -51,6 +53,7 @@ router.get('/platform', async (_req, res) => {
     success: true,
     data: {
       maxClassSeats: settings.maxClassSeats,
+      refundWindowDays: settings.refundWindowDays ?? 7,
       updatedAt: settings.updatedAt,
     },
   });
@@ -107,6 +110,8 @@ router.patch('/platform', requireAuth, requireRole('admin'), async (req, res) =>
 
   if (parsed.data.maxClassSeats !== undefined) {
     await ClassModel.updateMany({}, { $set: { maxStudents: parsed.data.maxClassSeats } });
+    const waiting = await WaitlistModel.distinct('classId', { status: 'waiting' });
+    for (const classId of waiting) await offerNextSeats(String(classId)).catch(() => {});
   }
 
   return res.json({

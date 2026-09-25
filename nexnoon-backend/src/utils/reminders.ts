@@ -62,7 +62,7 @@ async function recipientsFor(cls: any): Promise<Recipient[]> {
     String(cls.instructor?.id),
     ...(cls.teachingTeam || []).filter((m: any) => m.status === 'accepted').map((m: any) => String(m.userId)),
   ];
-  const enrollments = await EnrollmentModel.find({ classId: cls._id, status: 'active' }).select('userId').lean();
+  const enrollments = await EnrollmentModel.find({ classId: cls._id, status: { $in: ['active', 'completed'] } }).select('userId').lean();
   const learnerIds = enrollments.map((e) => String(e.userId));
   const users = await User.find({ _id: { $in: [...new Set([...teamIds, ...learnerIds])] } })
     .select('fullName email timezone emailPrefs')

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { refundPayment, releaseSeat } from '../utils/seats';
 import { formatWhen, pickTimeZone } from '../utils/time';
 import { isValidObjectId, Types } from 'mongoose';
 import { z } from 'zod';
@@ -1051,25 +1052,24 @@ router.post('/payments/:id/refund', async (req: AuthRequest, res) => {
   if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
   if (payment.status !== 'completed') return res.status(409).json({ success: false, message: `Only completed payments can be refunded (this one is ${payment.status})` });
 
-  if (payment.stripePaymentIntentId) {
-    const stripe = getStripe();
-    if (!stripe) return res.status(503).json({ success: false, message: 'Stripe is not configured, so this card payment cannot be refunded from here.' });
-    try {
-      await stripe.refunds.create({ payment_intent: payment.stripePaymentIntentId, metadata: { reason: parsed.data.reason } }, { idempotencyKey: `refund-${payment.id}` });
-    } catch (err: any) {
-      return res.status(502).json({ success: false, message: `Stripe refund failed: ${err?.message || 'unknown error'}` });
-    }
+  try {
+    await refundPayment(payment, parsed.data.reason);
+  } catch (err: any) {
+    return res.status(502).json({ success: false, message: `Refund failed: ${err?.message || 'unknown error'}` });
   }
-  payment.status = 'refunded';
-  await payment.save();
-  await syncEarnings();
+  const dropped = await EnrollmentModel.findOneAndUpdate(
+    { classId: payment.classId, userId: payment.userId, status: 'active' },
+    { $set: { status: 'dropped', droppedAt: new Date() } }
+  );
+  if (dropped) await releaseSeat(String(payment.classId));
 
   const cls = await ClassModel.findById(payment.classId).select('title');
   await NotificationModel.create({
     userId: payment.userId,
     type: 'payment',
     title: 'Refund issued',
-    message: `Your payment of ${payment.amount.toFixed(2)} ${payment.currency.toUpperCase()} for "${cls?.title || 'a class'}" was refunded.`,
+    message: `Your payment of ${payment.amount.toFixed(2)} ${payment.currency.toUpperCase()} for "${cls?.title || 'a class'}" was refunded.${dropped ? ' Your place in the class has been released.' : ''}`,
+    actionUrl: '/my-classes?tab=payments',
     read: false,
   }).catch(() => {});
   await logActivity({

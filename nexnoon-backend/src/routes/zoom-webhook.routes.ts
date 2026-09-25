@@ -149,7 +149,7 @@ router.post('/', async (req: RawBodyRequest, res) => {
         if (event === 'meeting.participant_joined') {
           // A signed Zoom event is proof of presence, even if they joined straight from the Zoom app.
           if (!record) {
-            if (enrollment.status !== 'active') break;
+            if (enrollment.status === 'dropped') break;
             record = new AttendanceRecordModel({
               classId: session.classId,
               sessionId: session.id,

@@ -6,6 +6,8 @@ export { authService } from './services/auth.service';
 export { classService } from './services/class.service';
 export { courseService } from './services/course.service';
 export { notificationService } from './services/notification.service';
+export { enrollmentService, formatMoney } from './services/enrollment.service';
+export type { EnrollmentStatus, LeaveTerms, WaitlistState, EnrollResult } from './services/enrollment.service';
 
 // Re-export types for convenience
 export type * from '@/types/api';

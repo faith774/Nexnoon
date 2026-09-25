@@ -54,10 +54,12 @@ export default function FileAttachment({
   url,
   onRemove,
   compact,
+  variant = 'row',
 }: {
   url: string;
   onRemove?: () => void;
   compact?: boolean;
+  variant?: 'row' | 'card';
 }) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const material = parseMaterial(url);
@@ -71,8 +73,86 @@ export default function FileAttachment({
     if (material.url) window.open(material.url, '_blank', 'noopener,noreferrer');
   };
 
+  const actions = (
+    <div className="flex items-center gap-0.5 flex-shrink-0">
+      {(material.canPreview || material.kind === 'note') && (
+        <button
+          type="button"
+          onClick={openPreview}
+          title="Preview"
+          aria-label="Preview"
+          className="p-1.5 text-[#6b655c] hover:text-[#14110e] hover:bg-[#f0ebe3] transition-colors"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+      )}
+      {material.url && (
+        <a
+          href={material.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open"
+          aria-label="Open in new tab"
+          className="p-1.5 text-[#6b655c] hover:text-[#14110e] hover:bg-[#f0ebe3] transition-colors"
+        >
+          <ExternalLink className="h-4 w-4" />
+        </a>
+      )}
+      {material.canDownload && material.url && (
+        <a
+          href={downloadUrl(material.url)}
+          download
+          title="Download"
+          aria-label="Download file"
+          className="p-1.5 text-[#6b655c] hover:text-[#14110e] hover:bg-[#f0ebe3] transition-colors"
+        >
+          <Download className="h-4 w-4" />
+        </a>
+      )}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          title="Remove"
+          aria-label="Remove"
+          className="p-1.5 text-[#8a847a] hover:text-red-600 hover:bg-red-50 transition-colors"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <>
+      {variant === 'card' ? (
+        <article className="flex h-full flex-col border border-[#e4dfd6] bg-white">
+          <button
+            type="button"
+            onClick={openPreview}
+            className="relative flex h-36 w-full items-center justify-center overflow-hidden bg-[#faf8f5]"
+          >
+            {material.kind === 'image' && material.previewUrl ? (
+              <img src={material.previewUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <Icon className="h-8 w-8 text-[#c45c26]/70" />
+            )}
+            <span className="absolute left-3 top-3 bg-white/95 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-[#6b655c]">
+              {kindLabel(material.kind)}
+            </span>
+          </button>
+          <div className="flex flex-1 flex-col gap-3 p-3.5">
+            <p className="line-clamp-2 text-sm font-medium text-[#14110e]" title={material.title}>{material.title}</p>
+            {material.hostLabel ? <p className="text-[11px] text-[#8a847a]">{material.hostLabel}</p> : null}
+            <div className="mt-auto flex items-center justify-between border-t border-[#eee9e0] pt-2">
+              <button type="button" onClick={openPreview} className="text-xs font-medium text-[#c45c26] hover:underline">
+                {material.canPreview || material.kind === 'note' ? 'Preview' : 'Open'}
+              </button>
+              {actions}
+            </div>
+          </div>
+        </article>
+      ) : (
       <div
         className={`flex items-center justify-between gap-3 bg-[#faf8f5] border border-[#e4dfd6] ${
           compact ? 'px-3 py-2.5' : 'px-3.5 py-3'
@@ -109,55 +189,9 @@ export default function FileAttachment({
             </span>
           </span>
         </button>
-
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          {(material.canPreview || material.kind === 'note') && (
-            <button
-              type="button"
-              onClick={openPreview}
-              title="Preview"
-              aria-label="Preview"
-              className="p-1.5 text-[#6b655c] hover:text-[#14110e] hover:bg-[#f0ebe3] transition-colors"
-            >
-              <Eye className="h-4 w-4" />
-            </button>
-          )}
-          {material.url && (
-            <a
-              href={material.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open"
-              aria-label="Open in new tab"
-              className="p-1.5 text-[#6b655c] hover:text-[#14110e] hover:bg-[#f0ebe3] transition-colors"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          )}
-          {material.canDownload && material.url && (
-            <a
-              href={downloadUrl(material.url)}
-              download
-              title="Download"
-              aria-label="Download file"
-              className="p-1.5 text-[#6b655c] hover:text-[#14110e] hover:bg-[#f0ebe3] transition-colors"
-            >
-              <Download className="h-4 w-4" />
-            </a>
-          )}
-          {onRemove && (
-            <button
-              type="button"
-              onClick={onRemove}
-              title="Remove"
-              aria-label="Remove"
-              className="p-1.5 text-[#8a847a] hover:text-red-600 hover:bg-red-50 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        {actions}
       </div>
+      )}
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border-[#e4dfd6] rounded-none p-0 gap-0">

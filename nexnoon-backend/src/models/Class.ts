@@ -101,6 +101,8 @@ export interface IClass extends Document {
   duration: number;
   totalSessions: number;
   enrolledStudents: number;
+  /** Seats reserved for waitlisted learners holding an open offer. */
+  heldSeats?: number;
   rating: number;
   reviewsCount: number;
   isLive: boolean;
@@ -182,6 +184,7 @@ const ClassSchema = new Schema<IClass>(
     duration: { type: Number, required: true },
     totalSessions: { type: Number, required: true },
     enrolledStudents: { type: Number, default: 0 },
+    heldSeats: { type: Number, default: 0 },
     rating: { type: Number, default: 0 },
     reviewsCount: { type: Number, default: 0 },
     isLive: { type: Boolean, default: true },

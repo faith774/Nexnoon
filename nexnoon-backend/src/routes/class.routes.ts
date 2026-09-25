@@ -35,6 +35,7 @@ import {
   markAttendanceSchema,
 } from '../utils/attendance';
 import { freeClassBlocked, priceRangeError } from '../utils/pricing';
+import { closeWaitlist, notEndedFilter, refundPayment } from '../utils/seats';
 
 const router = Router();
 
@@ -104,6 +105,55 @@ function normalizeClass(doc: any): any {
   if (rest.courseId) rest.courseId = String(rest.courseId);
   if (rest.languageOfferingId) rest.languageOfferingId = String(rest.languageOfferingId);
   return { ...rest, id: id || _id };
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Matches the class itself or the course it belongs to, so "spanish" finds every Spanish class. */
+async function searchFilter(raw: string) {
+  const rx = new RegExp(escapeRegex(raw.trim().slice(0, 100)), 'i');
+  const courses = await CourseModel.find({ status: 'published', $or: [{ title: rx }, { category: rx }] }).select('_id').lean();
+  return {
+    $and: [
+      {
+        $or: [
+          { title: rx },
+          { category: rx },
+          { language: rx },
+          { 'instructor.name': rx },
+          ...(courses.length ? [{ courseId: { $in: courses.map((c) => c._id) } }] : []),
+        ],
+      },
+    ],
+  };
+}
+
+/** Class view for anyone outside the class: no coursework, contact details or internal bookkeeping. */
+function publicClass(doc: any): any {
+  const data = normalizeClass(doc);
+  if (!data) return null;
+  const { assignments, remindersSent, ...rest } = data;
+  rest.assignmentCount = Array.isArray(assignments) ? assignments.length : 0;
+  if (rest.instructor) {
+    const { email: _e, ...instructor } = rest.instructor;
+    rest.instructor = instructor;
+  }
+  if (Array.isArray(rest.teachingTeam)) {
+    rest.teachingTeam = rest.teachingTeam
+      .filter((m: any) => m.status === 'accepted')
+      .map(({ email: _e, invitedBy: _i, ...m }: any) => m);
+  }
+  return rest;
+}
+
+async function canSeeFullClass(cls: any, user?: { id: string; role: string }) {
+  if (!user) return false;
+  if (user.role === 'admin' || teachesClass(cls, user.id)) return true;
+  const pending = (cls.teachingTeam || []).some((m: any) => String(m.userId) === user.id && m.status === 'pending');
+  if (pending) return true;
+  return !!(await EnrollmentModel.exists({ classId: cls._id, userId: user.id, status: { $in: ['active', 'completed'] } }));
 }
 
 /**
@@ -297,10 +347,8 @@ router.get('/', async (req, res) => {
   }
   const { page = 1, pageSize = 10, search } = parsed.data;
 
-  const query: any = { status: 'published' };
-  if (search) {
-    query.title = { $regex: search, $options: 'i' };
-  }
+  const query: any = { status: 'published', ...(await notEndedFilter()) };
+  if (search) Object.assign(query, await searchFilter(search));
 
   const [items, totalItems] = await Promise.all([
     ClassModel.find(query)
@@ -315,7 +363,7 @@ router.get('/', async (req, res) => {
   return res.json({
     success: true,
     data: {
-      data: items.map(normalizeClass),
+      data: items.map(publicClass),
       pagination: {
         page,
         pageSize,
@@ -336,10 +384,8 @@ router.get('/search', async (req, res) => {
   }
   const { page = 1, pageSize = 10 } = parsed.data;
 
-  const query: any = { status: 'published' };
-  if (q) {
-    query.title = { $regex: q, $options: 'i' };
-  }
+  const query: any = { status: 'published', ...(await notEndedFilter()) };
+  if (q.trim()) Object.assign(query, await searchFilter(q));
 
   const [items, totalItems] = await Promise.all([
     ClassModel.find(query)
@@ -354,7 +400,7 @@ router.get('/search', async (req, res) => {
   return res.json({
     success: true,
     data: {
-      data: items.map(normalizeClass),
+      data: items.map(publicClass),
       pagination: {
         page,
         pageSize,
@@ -376,7 +422,7 @@ router.get('/category/:category', async (req, res) => {
 
   const categoryNames: Record<string, string[]> = { 'health-wellness': ['Health & Wellness', 'Health & Fitness'], languages: ['Languages', 'Language', 'Language Learning'] };
   const names = categoryNames[req.params.category.toLowerCase()] || [req.params.category.replace(/-/g, ' ')];
-  const query: any = { status: 'published', category: { $in: names.map(name => new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')) } };
+  const query: any = { status: 'published', ...(await notEndedFilter()), category: { $in: names.map(name => new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i')) } };
 
   const [items, totalItems] = await Promise.all([
     ClassModel.find(query)
@@ -391,7 +437,7 @@ router.get('/category/:category', async (req, res) => {
   return res.json({
     success: true,
     data: {
-      data: items.map(normalizeClass),
+      data: items.map(publicClass),
       pagination: {
         page,
         pageSize,
@@ -462,7 +508,8 @@ router.get('/:id', async (req: AuthRequest, res) => {
   if (!cls) {
     return res.status(404).json({ success: false, message: 'Class not found' });
   }
-  if (cls.status !== 'published' && req.user?.role !== 'admin' && String(cls.instructor.id) !== req.user?.id) return res.status(404).json({ success: false, message: 'Class not found' });
+  const fullView = await canSeeFullClass(cls, req.user);
+  if (cls.status !== 'published' && !fullView) return res.status(404).json({ success: false, message: 'Class not found' });
 
   // Backfill stable module ids so live sessions can link to curriculum.
   if (cls.details?.curriculum?.some((m) => !m.id)) {
@@ -489,7 +536,14 @@ router.get('/:id', async (req: AuthRequest, res) => {
   }
 
   const schedule = sessions.map((s: any) => ({ ...sessionForViewer(normalizeSchedule(s), false), recordingUrl: undefined }));
-  const data = { ...normalizeClass(cls), schedule };
+  const course = cls.courseId
+    ? await CourseModel.findOne({ _id: cls.courseId, status: 'published' }).select('title slug').lean()
+    : null;
+  const data = {
+    ...(fullView ? normalizeClass(cls) : publicClass(cls)),
+    schedule,
+    course: course ? { title: course.title, slug: course.slug } : null,
+  };
 
   // Attach live portfolio fields from User profiles (not per-class bio overrides).
   const teamIds = [
@@ -797,7 +851,7 @@ async function requestFreeApproval(cls: InstanceType<typeof ClassModel>, instruc
         title: 'Free class needs approval',
         message: `${instructorName} wants to run "${cls.title}" for free.`,
         read: false,
-        actionUrl: `/admin/dashboard?tab=classes`,
+        actionUrl: `/admin/my-classes?tab=classes`,
       }))
     ).catch(() => {});
   }
@@ -832,7 +886,7 @@ router.post(
     let enrollment: InstanceType<typeof EnrollmentModel> | null = null;
     if (!onTeam && !isAdmin) {
       enrollment = await EnrollmentModel.findOne({ classId: req.params.classId, userId: req.user!.id });
-      if (!enrollment || enrollment.status !== 'active') {
+      if (!enrollment || enrollment.status === 'dropped') {
         return res.status(403).json({ success: false, message: 'Not enrolled in this class' });
       }
     }
@@ -1187,6 +1241,7 @@ router.post(
           ...(attachmentUrl ? { attachmentUrl } : {}),
           submittedAt: new Date(),
         },
+        $unset: { grade: 1 },
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
@@ -1343,7 +1398,7 @@ router.put(
       title: wasGraded ? 'Grade updated' : 'Assignment graded',
       message: `${assignment?.title || 'Your assignment'} in ${cls.title}: ${parsed.data.score}/${parsed.data.maxScore}`,
       read: false,
-      actionUrl: `/classroom/${cls.id}`,
+      actionUrl: `/assignments/${cls.id}`,
     }).catch(() => {});
 
     if (req.user!.role === 'admin') {
@@ -1808,6 +1863,7 @@ router.post('/:id/cancel', requireAuth, requireRole('admin'), async (req: AuthRe
   const parsed = z.object({
     reason: z.string().trim().min(3, 'Give learners a short reason').max(1000),
     notifyLearners: z.boolean().optional(),
+    refundLearners: z.boolean().optional(),
   }).safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ success: false, message: parsed.error.issues[0]?.message || 'Invalid request' });
@@ -1829,6 +1885,19 @@ router.post('/:id/cancel', requireAuth, requireRole('admin'), async (req: AuthRe
   cls.cancelledAt = now;
   cls.cancellationReason = parsed.data.reason;
   await cls.save();
+  await closeWaitlist(cls.id);
+
+  let refundsIssued = 0;
+  let refundsFailed = 0;
+  if (parsed.data.refundLearners) {
+    const payments = await PaymentModel.find({ classId: cls.id, status: 'completed' });
+    for (const payment of payments) {
+      await refundPayment(payment, `Class cancelled: ${parsed.data.reason}`).then(
+        () => { refundsIssued += 1; },
+        () => { refundsFailed += 1; }
+      );
+    }
+  }
 
   const learnersNotified = parsed.data.notifyLearners === false
     ? 0
@@ -1836,8 +1905,8 @@ router.post('/:id/cancel', requireAuth, requireRole('admin'), async (req: AuthRe
         classId: cls.id,
         classTitle: cls.title,
         title: 'Class cancelled',
-        message: `${cls.title} has been cancelled.\n\nReason: ${parsed.data.reason}\n\nOur team will contact you about next steps.`,
-        actionUrl: '/my-classes',
+        message: `${cls.title} has been cancelled.\n\nReason: ${parsed.data.reason}\n\n${refundsIssued ? 'Your payment is being refunded in full to your card (usually 5–10 business days).' : 'Our team will contact you about next steps.'}`,
+        actionUrl: '/my-classes?tab=classes',
       });
 
   const teamIds = (cls.teachingTeam || [])
@@ -1860,7 +1929,7 @@ router.post('/:id/cancel', requireAuth, requireRole('admin'), async (req: AuthRe
     actorName: 'Admin',
     actorRole: 'admin',
     targetClassId: cls.id,
-    meta: { sessionsCancelled: sessionResult.modifiedCount, learnersNotified, paidEnrollments },
+    meta: { sessionsCancelled: sessionResult.modifiedCount, learnersNotified, paidEnrollments, refundsIssued, refundsFailed },
   });
 
   return res.json({
@@ -1870,8 +1939,10 @@ router.post('/:id/cancel', requireAuth, requireRole('admin'), async (req: AuthRe
       sessionsCancelled: sessionResult.modifiedCount,
       learnersNotified,
       paidEnrollments,
+      refundsIssued,
+      refundsFailed,
     },
-    message: `Class cancelled. ${sessionResult.modifiedCount} session(s) cancelled, ${learnersNotified} learner(s) notified.`,
+    message: `Class cancelled. ${sessionResult.modifiedCount} session(s) cancelled, ${learnersNotified} learner(s) notified.${refundsIssued ? ` ${refundsIssued} refund(s) issued.` : ''}${refundsFailed ? ` ${refundsFailed} refund(s) failed; retry them from Payments.` : ''}`,
   });
 });
 
